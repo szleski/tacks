@@ -327,19 +327,27 @@
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --pico-background-color: #141417;
+  /* Atlantic: keep the blue visible across the page and layered surfaces. */
+  --pico-background-color: #123047;
   --pico-color: #e5e5ec;
-  --pico-muted-color: #a0a0ae;
-  --pico-muted-border-color: #2c2c35;
-  --pico-form-element-background-color: #18181d;
-  --pico-form-element-border-color: #373741;
-  --pico-form-element-placeholder-color: #a0a0ae;
+  --pico-muted-color: #afbecb;
+  --pico-muted-border-color: #30546b;
+  --pico-form-element-background-color: #15354b;
+  --pico-form-element-active-background-color: var(--pico-form-element-background-color);
+  --pico-form-element-border-color: #3d637a;
+  --pico-form-element-placeholder-color: var(--pico-muted-color);
   --pico-h1-color: #f4f4f8;
   --pico-h2-color: #e5e5ec;
   --pico-h3-color: #e5e5ec;
-  --surface: #19191e;
-  --surface-raised: #202027;
-  --surface-hover: #26262f;
+  --surface: #14334a;
+  --surface-raised: #16364d;
+  --surface-hover: #17374e;
+  --pico-card-background-color: var(--surface-raised);
+  --pico-card-sectioning-background-color: var(--surface);
+  --pico-card-border-color: var(--pico-muted-border-color);
+  --pico-dropdown-background-color: var(--surface-raised);
+  --pico-dropdown-border-color: var(--pico-muted-border-color);
+  --pico-dropdown-hover-background-color: var(--surface-hover);
 }
 
 html { scrollbar-gutter: stable; }
