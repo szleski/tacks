@@ -75,7 +75,6 @@
       hovered = id;
       const n = graph.nodes.find(n => n.id === id);
       inspector.replaceChildren();
-      const close = document.createElement('button'); close.type = 'button'; close.className = 'graph-preview-close'; close.setAttribute('aria-label', 'Close issue preview'); close.textContent = '×'; close.onclick = dismiss; inspector.append(close);
       const title = document.createElement('a'); title.className = 'graph-preview-title'; title.href = '/tasks/' + encodeURIComponent(id); title.textContent = n.title; inspector.append(title);
       const meta = document.createElement('p'); meta.className = 'graph-preview-meta'; meta.textContent = `${n.id} · P${n.priority} · ${window.TacksStatus[state(n)].label}`; inspector.append(meta);
       function links(label, ids) {

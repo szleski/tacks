@@ -2195,11 +2195,10 @@ a.view-toggle-btn:focus-visible {
 .graph-legend > span { color: var(--status-color); }
 #graph-inspector { position: absolute; z-index: 5; width: min(300px, calc(100% - 24px)); max-height: calc(100% - 24px); overflow: auto; padding: 14px; border: 1px solid var(--pico-muted-border-color); border-radius: 8px; background: var(--surface-raised); color: var(--pico-color); box-shadow: 0 8px 28px #0004; font-size: .8rem; }
 #graph-inspector[hidden] { display: none; }
-.graph-preview-title { display: block; color: var(--graph-text); font-weight: 600; font-size: .9rem; line-height: 1.4; text-decoration: none; padding-right: 18px; }
+.graph-preview-title { display: block; color: var(--graph-text); font-weight: 600; font-size: .9rem; line-height: 1.4; text-decoration: none; }
 .graph-preview-title:hover { color: var(--pico-primary); }
 #graph-inspector p { margin: .5rem 0 0; color: var(--pico-muted-color); }
 #graph-inspector .graph-preview-meta { font-size: .72rem; margin-top: .3rem; }
-.graph-preview-close { position: absolute; top: 6px; right: 6px; border: 0; background: transparent; box-shadow: none; color: var(--pico-muted-color); padding: 2px 5px; width: auto; margin: 0; line-height: 1; font-size: 1rem; }
 .graph-preview-open { display: inline-block; margin-top: .75rem; font-weight: 600; text-decoration: none; }
 .graph-hint { margin: .6rem 0 0; font-size: .72rem; }
 @media (max-width: 600px) { #graph-svg { height: 500px; } #graph-search { background-image: none; flex: 1 1 180px; } }
