@@ -1078,8 +1078,12 @@ fn build_poll_query(
     priority: &Option<String>,
     tag: &Option<String>,
     search: &Option<String>,
+    all: Option<bool>,
 ) -> String {
     let mut parts = Vec::new();
+    if let Some(all) = all {
+        parts.push(format!("all={all}"));
+    }
     if let Some(s) = status {
         parts.push(format!("status={s}"));
     }
@@ -1110,7 +1114,8 @@ pub async fn task_list(
         || params.search.as_deref().is_some_and(|s| !s.is_empty());
     let status_values = parse_status_values(&params.status);
     let priority_values = parse_priority_values(&params.priority);
-    let show_all = has_filter || params.all.unwrap_or(false);
+    // “All statuses” includes completed issues in the web UI. CLI defaults are unchanged.
+    let show_all = has_filter || params.all.unwrap_or(true);
     let tag_param = params.tag.clone();
     let search_filter = params.search.clone();
 
@@ -1195,6 +1200,7 @@ pub async fn task_list(
         &params.priority,
         &params.tag,
         &params.search,
+        params.all,
     );
 
     render_template(TaskListTemplate {

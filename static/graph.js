@@ -6,8 +6,9 @@
     if (!root || root.dataset.initialized) return;
     root.dataset.initialized = 'true';
     const svg = root.querySelector('#graph-svg'), summary = root.querySelector('#graph-summary');
+    const selection = root.querySelector('#graph-selection');
     const inspector = root.querySelector('#graph-inspector'), search = root.querySelector('#graph-search');
-    let graph, selected, box, drag, previewTimer, hideTimer, moved = false;
+    let graph, selected, hovered, box, drag, previewTimer, hideTimer, moved = false;
     function el(tag, attrs, text) {
       const e = document.createElementNS(NS, tag);
       Object.entries(attrs || {}).forEach(([key, value]) => e.setAttribute(key, value));
@@ -32,37 +33,63 @@
     function highlight() {
       const query = search.value.toLowerCase().trim();
       let matches = 0;
+      const active = selected || hovered;
+      const blockers = new Set(graph.edges.filter(e => e.child_id === active).map(e => e.parent_id));
+      const dependents = new Set(graph.edges.filter(e => e.parent_id === active).map(e => e.child_id));
       svg.querySelectorAll('.graph-node').forEach(e => {
         const n = graph.nodes.find(n => n.id === e.dataset.id);
         const match = query && `${n.id} ${n.title}`.toLowerCase().includes(query);
         if (match) matches++;
         e.classList.toggle('graph-match', !!match);
-        e.classList.toggle('graph-selected', n.id === selected);
+        e.classList.toggle('graph-selected', n.id === active);
+        e.classList.toggle('graph-blocker', blockers.has(n.id));
+        e.classList.toggle('graph-dependent', dependents.has(n.id));
+        e.setAttribute('aria-pressed', String(n.id === selected));
       });
       svg.querySelectorAll('.graph-edge').forEach(e => {
-        e.classList.toggle('graph-edge-selected', e.dataset.from === selected || e.dataset.to === selected);
+        e.classList.toggle('graph-edge-blocker', e.dataset.to === active);
+        e.classList.toggle('graph-edge-dependent', e.dataset.from === active);
       });
       summary.textContent = `${graph.nodes.length} issues · ${graph.groups.filter(g => g.id).length} epic groups · ${graph.edges.length} dependencies · all statuses included${query ? ` · ${matches} matches` : ''}`;
     }
     function dismiss() {
       clearTimeout(previewTimer); clearTimeout(hideTimer);
-      inspector.hidden = true; selected = undefined;
+      inspector.hidden = true; hovered = undefined;
       if (graph) highlight();
     }
+    function showSelection() {
+      selection.replaceChildren(); selection.hidden = !selected;
+      if (!selected) return;
+      const n = graph.nodes.find(n => n.id === selected);
+      const link = document.createElement('a'); link.href = '/tasks/' + encodeURIComponent(n.id);
+      link.textContent = `${n.id}: ${n.title} ↗`; link.className = 'graph-selection-link'; selection.append(link);
+      for (const [label, relation, count] of [
+        ['blockers', 'blocker', graph.edges.filter(e => e.child_id === selected).length],
+        ['dependants', 'dependent', graph.edges.filter(e => e.parent_id === selected).length],
+      ]) {
+        const span = document.createElement('span'); span.className = 'graph-relation-' + relation;
+        span.textContent = `${count} ${label}`; selection.append(span);
+      }
+      const clear = document.createElement('button'); clear.type = 'button'; clear.className = 'graph-selection-clear';
+      clear.textContent = '×'; clear.setAttribute('aria-label', 'Clear graph selection'); clear.onclick = clearSelection; selection.append(clear);
+    }
+    function clearSelection() { selected = undefined; dismiss(); showSelection(); }
+    function select(id) { selected = id; dismiss(); showSelection(); }
     function scheduleHide() {
       if (inspector.contains(document.activeElement) || document.activeElement.matches('.graph-node')) return;
       clearTimeout(previewTimer); clearTimeout(hideTimer);
       hideTimer = setTimeout(dismiss, 180);
     }
     function preview(id, anchor, delay = 180) {
+      if (selected) return;
       clearTimeout(previewTimer); clearTimeout(hideTimer);
       previewTimer = setTimeout(() => {
-        if (!root.isConnected || drag) return;
+        if (!root.isConnected || drag || selected) return;
         inspect(id, anchor);
       }, delay);
     }
     function inspect(id, anchor) {
-      selected = id;
+      hovered = id;
       const n = graph.nodes.find(n => n.id === id);
       inspector.replaceChildren();
       const close = document.createElement('button'); close.type = 'button'; close.className = 'graph-preview-close'; close.setAttribute('aria-label', 'Close issue preview'); close.textContent = '×'; close.onclick = dismiss; inspector.append(close);
@@ -125,7 +152,7 @@
       graph.nodes.forEach(n => { if (n.parent_id) edge(n.parent_id, n.id, true); });
       graph.edges.forEach(e => edge(e.parent_id, e.child_id, false));
       graph.nodes.forEach(n => {
-        const g = el('a', {href: '/tasks/' + encodeURIComponent(n.id), class: `graph-node graph-status-${state(n)}`, transform: `translate(${n.x},${n.y})`, tabindex: 0, role: 'link', 'aria-label': `${n.id}: ${n.title}; ${window.TacksStatus[state(n)].label}`});
+        const g = el('a', {href: '/tasks/' + encodeURIComponent(n.id), class: `graph-node graph-status-${state(n)}`, transform: `translate(${n.x},${n.y})`, tabindex: 0, role: 'button', 'aria-pressed': 'false', 'aria-label': `${n.id}: ${n.title}; ${window.TacksStatus[state(n)].label}`});
         g.dataset.id = n.id;
         g.append(el('rect', {width: 240, height: 74, rx: 8}));
         const glyph = el('use', {href: window.TacksStatus[n.status].symbol, class: 'graph-status-icon', x: 7, y: 9, width: 16, height: 16, 'aria-hidden': 'true'});
@@ -135,7 +162,14 @@
         const words = n.title.split(/\s+/), lines = [''];
         words.forEach(w => { if ((lines[lines.length - 1] + w).length > 29 && lines.length < 2) lines.push(''); lines[lines.length - 1] += (lines[lines.length - 1] ? ' ' : '') + w; });
         lines.forEach((line, i) => g.append(el('text', {x: 12, y: 43 + i * 17, class: 'graph-title'}, line.length > 31 ? line.slice(0, 30) + '…' : line)));
-        g.addEventListener('click', e => { if (moved) { e.preventDefault(); e.stopPropagation(); } });
+        g.addEventListener('click', e => {
+          if (moved) { e.preventDefault(); e.stopPropagation(); return; }
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+          e.preventDefault(); select(n.id);
+        });
+        g.addEventListener('keydown', e => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(n.id); }
+        });
         g.addEventListener('pointerenter', () => preview(n.id, g));
         g.addEventListener('pointerleave', scheduleHide);
         g.addEventListener('blur', scheduleHide);
@@ -157,8 +191,9 @@
         const data = await response.json();
         const initial = !graph;
         graph = window.layoutTacksGraph(data.tasks, data.dependencies); draw();
+        if (selected && !graph.nodes.some(n => n.id === selected)) selected = undefined;
         if (initial) fit();
-        dismiss();
+        dismiss(); showSelection();
         if (!graph.nodes.length) summary.textContent = 'No issues yet. Create an issue to start your graph.';
       } catch (e) { summary.textContent = `Could not load graph: ${e.message}. Use Refresh to retry.`; }
       finally { button.disabled = false; }
@@ -189,7 +224,8 @@
     inspector.addEventListener('pointerleave', scheduleHide);
     inspector.addEventListener('focusin', () => { clearTimeout(hideTimer); clearTimeout(previewTimer); });
     inspector.addEventListener('focusout', e => { if (!inspector.contains(e.relatedTarget)) scheduleHide(); });
-    root.addEventListener('keydown', e => { if (e.key === 'Escape') dismiss(); });
+    root.addEventListener('keydown', e => { if (e.key === 'Escape') clearSelection(); });
+    svg.addEventListener('click', e => { if (!moved && !e.target.closest('.graph-node')) clearSelection(); });
     svg.addEventListener('pointerleave', () => { if (!drag && !inspector.matches(':hover')) scheduleHide(); });
     svg.addEventListener('pointerdown', e => { if (!box || e.button !== 0) return; moved = false; if (e.pointerType === 'touch') return; drag = {point: point(e), x: e.clientX, y: e.clientY, box: {...box}}; });
     svg.addEventListener('pointermove', e => {

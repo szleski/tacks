@@ -76,6 +76,10 @@ Kanban board with drag-and-drop status changes, column counts, and multi-select 
 
 ### Task list
 
+The web Issues page includes completed work by default: **All statuses** means
+all statuses. Choose individual statuses to narrow it down. The CLI `tk list`
+continues to show unfinished tasks unless you pass `--all`.
+
 Sortable table with inline editing — click any field to edit in place.
 
 ![Task list](docs/images/list.png)
@@ -89,7 +93,12 @@ dashed lines show parent membership. Cross-epic dependencies appear in the same
 view. Drag to pan, pinch (or Control-scroll) to zoom, and use **Fit** to reset.
 Ordinary two-finger scrolling scrolls the page. Compact buttons also control zoom.
 Search highlights issues without hiding the rest. Hover or focus a node to preview its
-blockers and dependents; click it or press Enter to open the issue directly.
+blockers and dependents. Click or press Enter to pin a selection and close the
+preview. Its direct blockers have solid outlines; direct dependants have dashed
+outlines, with matching arrows. Hover previews pause while selected. Open the
+issue using its title link above the graph (or Command/Control-click its node).
+Clear selection with Escape, the × button, or a click on the graph background.
+Selection stays highlighted while panning, zooming, searching, or refreshing.
 Status shapes and written labels distinguish open, in-progress, blocked, and done
 work independently of colour. The same colours, symbols, labels, and status order
 are used in filters, lists, boards, epic pages, and issue details. Views show the

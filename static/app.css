@@ -2160,7 +2160,8 @@ a.view-toggle-btn:focus-visible {
 }
 
 /* Whole-workspace dependency graph */
-#dependency-graph { --graph-text: var(--pico-color); }
+#dependency-graph { --graph-text: var(--pico-color); --graph-blocker: #1761ad; --graph-dependent: #6d43aa; }
+[data-theme="dark"] #dependency-graph { --graph-blocker: #8dcaff; --graph-dependent: #d1b5ff; }
 .graph-description, .graph-hint { color: var(--pico-muted-color); font-size: .85rem; }
 .graph-toolbar { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; margin-bottom: .9rem; }
 #graph-search { background-image: none; flex: 0 1 320px; height: 34px; margin: 0; font-size: .8rem; padding: .35rem .7rem; border-radius: 6px; }
@@ -2178,7 +2179,19 @@ a.view-toggle-btn:focus-visible {
 .graph-lane-title { fill: var(--pico-muted-color); font: 600 13px system-ui, sans-serif; }
 .graph-edge { fill: none; stroke: var(--pico-muted-color); stroke-width: 1.7; }
 .graph-membership { fill: none; stroke: var(--pico-muted-color); stroke-width: 1; stroke-dasharray: 4 5; opacity: .65; }
-.graph-edge-selected { stroke: var(--pico-primary); stroke-width: 3; }
+.graph-edge-blocker { stroke: var(--graph-blocker); stroke-width: 3; }
+.graph-edge-dependent { stroke: var(--graph-dependent); stroke-width: 3; stroke-dasharray: 8 4; }
+.graph-node.graph-blocker > rect { stroke: var(--graph-blocker); stroke-width: 3; }
+.graph-node.graph-dependent > rect { stroke: var(--graph-dependent); stroke-width: 3; stroke-dasharray: 8 4; }
+.graph-selection { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; font-size: .78rem; margin: 0 0 .6rem; min-height: 30px; }
+.graph-selection[hidden] { display: none; }
+.graph-selection-link { font-weight: 600; text-decoration: none; }
+.graph-relation-blocker, .graph-relation-dependent { display: inline-flex; align-items: center; gap: .4rem; color: var(--graph-blocker); }
+.graph-relation-dependent { color: var(--graph-dependent); }
+.graph-relation-blocker::before, .graph-relation-dependent::before { content: ''; width: 18px; border-top: 2px solid currentColor; }
+.graph-relation-dependent::before { border-top-style: dashed; }
+.graph-selection-clear { border: 0; padding: 0 .3rem; margin: 0; width: auto; background: transparent; box-shadow: none; color: var(--pico-muted-color); font-size: 1rem; line-height: 1.5; }
+.graph-selection :is(a,button):focus-visible { outline: 2px solid var(--pico-primary); outline-offset: 2px; }
 .graph-node { cursor: pointer; outline: none; text-decoration: none; color: var(--status-color, var(--status-open)); }
 .graph-node > rect { fill: var(--pico-card-background-color); stroke: var(--pico-muted-color); stroke-width: 1.2; }
 .graph-node:focus > rect, .graph-node:hover > rect, .graph-node.graph-selected > rect, .graph-node.graph-match > rect { stroke: var(--pico-primary); stroke-width: 3; }

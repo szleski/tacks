@@ -89,6 +89,36 @@ async fn graph_includes_completed_isolated_and_cross_epic_issues() {
         .unwrap();
     assert!(html.contains("id=\"graph-svg\""));
     assert!(html.contains("id=\"nav-graph\""));
+    // Web “All statuses” includes completed issues, including during live polling.
+    for (query, includes_done) in [
+        ("", true),
+        ("?status=done", true),
+        ("?all=true", true),
+        ("?all=false", false),
+        ("?status=open", false),
+    ] {
+        let page = client
+            .get(format!("{url}/tasks{query}"))
+            .send()
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap()
+            .text()
+            .await
+            .unwrap();
+        assert_eq!(
+            page.contains("data-href=\"/tasks/a\""),
+            includes_done,
+            "completed issue visibility for {query}"
+        );
+        if query == "?all=false" {
+            assert!(
+                page.contains("hx-get=\"/tasks?all=false\""),
+                "live polling preserves an explicit all=false override"
+            );
+        }
+    }
     // A prerequisite must not silently change the status column of an open issue.
     let board = client
         .get(format!("{url}/board"))
