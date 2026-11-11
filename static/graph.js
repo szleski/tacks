@@ -111,39 +111,40 @@
       marker.append(el('path', {d: 'M 0 0 L 10 5 L 0 10 z', fill: 'context-stroke'})); defs.append(marker); svg.append(defs);
       graph.groups.forEach(g => {
         svg.append(el('rect', {x: 16, y: g.y, width: g.width - 32, height: g.height - 10, rx: 10, class: 'graph-lane'}));
-        svg.append(el('text', {x: 32, y: g.y + 23, class: 'graph-lane-title'}, g.title));
+        if (!g.id) svg.append(el('text', {x: 40, y: g.y + 23, class: 'graph-lane-title'}, g.title));
       });
       const byId = new Map(graph.nodes.map(n => [n.id, n]));
-      function edge(from, to, membership) {
+      function edge(from, to) {
         const a = byId.get(from), b = byId.get(to);
         if (!a || !b) return;
-        let x1 = a.x + 240, y1 = a.y + 37, x2 = b.x - 3, y2 = b.y + 37;
-        // Same-column membership curves around the left of cards.
-        let d;
-        if (membership && a.x === b.x) {
-          x1 = a.x; x2 = b.x;
-          d = `M${x1},${y1} C${x1 - 25},${y1} ${x2 - 25},${y2} ${x2},${y2}`;
-        } else {
-          const bend = Math.max(30, Math.abs(x2 - x1) * .45);
-          d = `M${x1},${y1} C${x1 + bend},${y1} ${x2 - bend},${y2} ${x2},${y2}`;
-        }
-        const path = el('path', {d, class: membership ? 'graph-membership' : 'graph-edge', ...(membership ? {} : {'marker-end': 'url(#graph-arrow)'})});
+        // Epic dependencies attach beneath the lane heading, not to a duplicate card.
+        const x1 = a.x + (a.isLaneHeader ? 10 : 240), y1 = a.y + (a.isLaneHeader ? 26 : 37);
+        const x2 = b.x - 3, y2 = b.y + (b.isLaneHeader ? 12 : 37);
+        const bend = Math.max(30, Math.abs(x2 - x1) * .45);
+        const d = `M${x1},${y1} C${x1 + bend},${y1} ${x2 - bend},${y2} ${x2},${y2}`;
+        const path = el('path', {d, class: 'graph-edge', 'marker-end': 'url(#graph-arrow)'});
         path.dataset.from = from; path.dataset.to = to;
-        path.append(el('title', {}, `${a.title} ${membership ? 'contains' : 'blocks'} ${b.title}`)); svg.append(path);
+        path.append(el('title', {}, `${a.title} blocks ${b.title}`)); svg.append(path);
       }
-      graph.nodes.forEach(n => { if (n.parent_id) edge(n.parent_id, n.id, true); });
-      graph.edges.forEach(e => edge(e.parent_id, e.child_id, false));
+      graph.edges.forEach(e => edge(e.parent_id, e.child_id));
       graph.nodes.forEach(n => {
-        const g = el('a', {href: '/tasks/' + encodeURIComponent(n.id), class: `graph-node graph-status-${state(n)}`, transform: `translate(${n.x},${n.y})`, tabindex: 0, role: 'button', 'aria-pressed': 'false', 'aria-label': `${n.id}: ${n.title}; ${window.TacksStatus[state(n)].label}`});
+        const g = el('a', {href: '/tasks/' + encodeURIComponent(n.id), class: `graph-node ${n.isLaneHeader ? 'graph-lane-header' : 'graph-issue-card'} graph-status-${state(n)}`, transform: `translate(${n.x},${n.y})`, tabindex: 0, role: 'button', 'aria-pressed': 'false', 'aria-label': `${n.id}: ${n.title}; ${window.TacksStatus[state(n)].label}`});
         g.dataset.id = n.id;
-        g.append(el('rect', {width: 240, height: 74, rx: 8}));
-        const glyph = el('use', {href: window.TacksStatus[n.status].symbol, class: 'graph-status-icon', x: 7, y: 9, width: 16, height: 16, 'aria-hidden': 'true'});
-        g.append(glyph);
-        g.append(el('text', {x: 26, y: 22, class: 'graph-meta'}, `${n.id} · P${n.priority} · ${window.TacksStatus[state(n)].label}`));
-        // Split titles into two lines; the full text is available on hover and selection.
-        const words = n.title.split(/\s+/), lines = [''];
-        words.forEach(w => { if ((lines[lines.length - 1] + w).length > 29 && lines.length < 2) lines.push(''); lines[lines.length - 1] += (lines[lines.length - 1] ? ' ' : '') + w; });
-        lines.forEach((line, i) => g.append(el('text', {x: 12, y: 43 + i * 17, class: 'graph-title'}, line.length > 31 ? line.slice(0, 30) + '…' : line)));
+        const glyph = el('use', {href: window.TacksStatus[n.status].symbol, class: 'graph-status-icon', x: n.isLaneHeader ? 0 : 7, y: n.isLaneHeader ? 0 : 9, width: 16, height: 16, 'aria-hidden': 'true'});
+        if (n.isLaneHeader) {
+          g.append(glyph);
+          const label = `${n.title} · ${n.id} · P${n.priority} · ${window.TacksStatus[n.status].label}`;
+          const max = Math.max(12, Math.floor((n.width - 24) / 7));
+          g.append(el('text', {x: 24, y: 14, class: 'graph-lane-title'}, label.length > max ? label.slice(0, max - 1) + '…' : label));
+        } else {
+          g.append(el('rect', {width: 240, height: 74, rx: 8}));
+          g.append(glyph);
+          g.append(el('text', {x: 26, y: 22, class: 'graph-meta'}, `${n.id} · P${n.priority} · ${window.TacksStatus[state(n)].label}`));
+          // The full title remains available in the hover preview.
+          const words = n.title.split(/\s+/), lines = [''];
+          words.forEach(w => { if ((lines[lines.length - 1] + w).length > 29 && lines.length < 2) lines.push(''); lines[lines.length - 1] += (lines[lines.length - 1] ? ' ' : '') + w; });
+          lines.forEach((line, i) => g.append(el('text', {x: 12, y: 43 + i * 17, class: 'graph-title'}, line.length > 31 ? line.slice(0, 30) + '…' : line)));
+        }
         g.addEventListener('click', e => {
           if (moved) { e.preventDefault(); e.stopPropagation(); return; }
           if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -156,8 +157,8 @@
         g.addEventListener('pointerleave', scheduleHide);
         g.addEventListener('blur', scheduleHide);
         g.addEventListener('focus', () => {
-          if (box && box.w < graph.width && (n.x < box.x || n.x + 240 > box.x + box.w || n.y < box.y || n.y + 74 > box.y + box.h)) {
-            box.x = n.x + 120 - box.w / 2; box.y = n.y + 37 - box.h / 2; view();
+          if (box && box.w < graph.width && (n.x < box.x || n.x + n.width > box.x + box.w || n.y < box.y || n.y + n.height > box.y + box.h)) {
+            box.x = n.x + Math.min(n.width, box.w) / 2 - box.w / 2; box.y = n.y + n.height / 2 - box.h / 2; view();
           }
           preview(n.id, g, 0);
         });

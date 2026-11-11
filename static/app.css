@@ -2176,9 +2176,8 @@ a.view-toggle-btn:focus-visible {
 #graph-svg { display: block; width: 100%; height: 640px; touch-action: pan-y pinch-zoom; cursor: grab; background: var(--pico-card-background-color); }
 #graph-svg:active { cursor: grabbing; }
 .graph-lane { fill: var(--pico-background-color); stroke: var(--pico-muted-border-color); }
-.graph-lane-title { fill: var(--pico-muted-color); font: 600 13px system-ui, sans-serif; }
+.graph-lane-title { fill: var(--graph-text); font: 600 13px system-ui, sans-serif; }
 .graph-edge { fill: none; stroke: var(--pico-muted-color); stroke-width: 1.7; }
-.graph-membership { fill: none; stroke: var(--pico-muted-color); stroke-width: 1; stroke-dasharray: 4 5; opacity: .65; }
 .graph-edge-blocker { stroke: var(--graph-blocker); stroke-width: 3; }
 .graph-edge-dependent { stroke: var(--graph-dependent); stroke-width: 3; stroke-dasharray: 8 4; }
 .graph-node.graph-blocker > rect { stroke: var(--graph-blocker); stroke-width: 3; }
@@ -2202,3 +2201,7 @@ a.view-toggle-btn:focus-visible {
 .graph-preview-open { display: inline-block; margin-top: .75rem; font-weight: 600; text-decoration: none; }
 .graph-hint { margin: .6rem 0 0; font-size: .72rem; }
 @media (max-width: 600px) { #graph-svg { height: 500px; } #graph-search { background-image: none; flex: 1 1 180px; } }
+
+.graph-lane-header:is(:hover, :focus, .graph-selected, .graph-match) .graph-lane-title { text-decoration: underline; text-decoration-color: var(--pico-primary); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.graph-lane-header.graph-blocker .graph-lane-title { text-decoration: underline solid var(--graph-blocker) 2px; text-underline-offset: 4px; }
+.graph-lane-header.graph-dependent .graph-lane-title { text-decoration: underline dashed var(--graph-dependent) 2px; text-underline-offset: 4px; }

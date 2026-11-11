@@ -19,13 +19,17 @@
         if (!degree.get(id)) queue.push(child);
       });
     }
-    // Nested subtasks belong to the lane of their outermost parent.
+    // Each epic owns a lane; nested epics get their own heading too.
+    const parentIds = new Set(nodes.map(n => n.parent_id).filter(Boolean));
+    const headerIds = new Set(nodes.filter(n => n.tags.includes('epic') || parentIds.has(n.id)).map(n => n.id));
     function laneId(node) {
+      if (headerIds.has(node.id)) return node.id;
       const seen = new Set([node.id]);
       while (node.parent_id && byId.has(node.parent_id) && !seen.has(node.parent_id)) {
         seen.add(node.parent_id); node = byId.get(node.parent_id);
+        if (headerIds.has(node.id)) return node.id;
       }
-      return node.tags.includes('epic') || tasks.some(t => t.parent_id === node.id) ? node.id : '';
+      return '';
     }
     const lanes = new Map();
     nodes.forEach(n => { const key = laneId(n); if (!lanes.has(key)) lanes.set(key, []); lanes.get(key).push(n); });
@@ -34,16 +38,23 @@
     const width = Math.max(740, (Math.max(0, ...nodes.map(n => n.rank)) + 1) * 300 + 80);
     [...lanes.keys()].sort().forEach(key => {
       const members = lanes.get(key), start = y;
-      y += 36;
+      const header = key ? byId.get(key) : null;
+      if (header) {
+        header.isLaneHeader = true;
+        header.x = 40 + header.rank * 300; header.y = start + 8;
+        header.width = width - header.x - 40; header.height = 24; header.lane = key;
+      }
+      y += 44;
       const counts = new Map();
-      members.forEach(n => {
+      members.filter(n => n !== header).forEach(n => {
         const row = counts.get(n.rank) || 0;
         n.x = 40 + n.rank * 300; n.y = y + row * 100;
+        n.width = 240; n.height = 74; n.isLaneHeader = false;
         counts.set(n.rank, row + 1);
         n.lane = key;
       });
-      y += Math.max(...counts.values()) * 100 + 20;
-      groups.push({id: key, title: key ? byId.get(key).title : 'Independent issues', y: start, height: y - start, width});
+      y += Math.max(0, ...counts.values()) * 100 + 20;
+      groups.push({id: key, title: header ? header.title : 'Independent issues', y: start, height: y - start, width});
     });
     return {nodes, edges, groups, width, height: Math.max(240, y + 20)};
   }

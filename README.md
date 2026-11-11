@@ -88,8 +88,9 @@ Sortable table with inline editing — click any field to edit in place.
 
 Open **Graph** in the navigation bar, or visit `/graph`. It shows every issue,
 including epics, completed work, and issues with no dependency edges. Epic lanes
-keep related work together; solid arrows point from blocker to dependent and
-dashed lines show parent membership. Cross-epic dependencies appear in the same
+keep related work together, with the epic’s status, title and ID in the lane
+heading. Only member issues are cards; arrows show blocking dependencies.
+Cross-epic dependencies appear in the same
 view. Drag to pan, pinch (or Control-scroll) to zoom, and use **Fit** to reset.
 Ordinary two-finger scrolling scrolls the page. Compact buttons also control zoom.
 Search highlights issues without hiding the rest. Hover or focus a node to preview its
