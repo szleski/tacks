@@ -88,8 +88,10 @@
       var isActive = path === base || path.startsWith(base + '/') || path.startsWith(base + '?');
       if (isActive) {
         el.classList.add('nav-active');
+        el.setAttribute('aria-current', 'page');
       } else {
         el.classList.remove('nav-active');
+        el.removeAttribute('aria-current');
       }
     });
   }
@@ -108,6 +110,7 @@
   // Keep pushUrl/replaceUrl as belt-and-suspenders for immediate URL feedback
   document.addEventListener('htmx:pushUrl', initNavActive);
   document.addEventListener('htmx:replaceUrl', initNavActive);
+  document.addEventListener('htmx:historyRestore', initNavActive);
 
   // --- Help overlay ---
 
@@ -126,11 +129,12 @@
       '  <table>',
       '    <tbody>',
       '      <tr><td><kbd>n</kbd></td><td>New task</td></tr>',
-      '      <tr><td><kbd>/</kbd></td><td>Focus tag filter</td></tr>',
+      '      <tr><td><kbd>/</kbd></td><td>Focus issue search</td></tr>',
       '      <tr><td><kbd>?</kbd></td><td>Show / hide this help</td></tr>',
       '      <tr><td><kbd>j</kbd> / <kbd>&darr;</kbd></td><td>Next row (task list)</td></tr>',
       '      <tr><td><kbd>k</kbd> / <kbd>&uarr;</kbd></td><td>Previous row (task list)</td></tr>',
-      '      <tr><td><kbd>Enter</kbd></td><td>Open focused task</td></tr>',
+      '      <tr><td><kbd>Enter</kbd></td><td>Open focused issue</td></tr>',
+      '      <tr><td><kbd>Shift</kbd> + <kbd>←</kbd> / <kbd>→</kbd></td><td>Move the focused board card</td></tr>',
       '      <tr><td><kbd>Esc</kbd></td><td>Close this overlay / blur focus</td></tr>',
       '    </tbody>',
       '  </table>',
@@ -244,11 +248,11 @@
   // --- Board navigation ---
 
   function getBoardCards() {
-    return Array.from(document.querySelectorAll('#content-area article a'));
+    return Array.from(document.querySelectorAll('#content-area .board-card'));
   }
 
   function getFocusedCardIndex(cards) {
-    return cards.indexOf(document.activeElement);
+    return cards.indexOf(document.activeElement.closest('.board-card'));
   }
 
   function focusCard(cards, index) {
@@ -352,16 +356,16 @@
   }
 
   function pushTaskHash(taskId) {
-    if (taskId) {
-      history.pushState(null, '', TASK_HASH_PREFIX + taskId);
+    if (taskId && getHashTaskId() !== taskId) {
+      history.pushState({ tacksModal: true }, '', TASK_HASH_PREFIX + taskId);
     }
   }
 
   function clearTaskHash() {
-    // Only clear if we have a task hash — avoids polluting history with no-op pushes
-    if (window.location.hash && window.location.hash.startsWith(TASK_HASH_PREFIX)) {
-      history.pushState(null, '', window.location.pathname + window.location.search);
-    }
+    if (!getHashTaskId()) return;
+    if (history.state && history.state.tacksModal) history.back();
+    else history.replaceState(history.state, '', window.location.pathname + window.location.search);
+
   }
 
   // Extract task ID from modal content — look for a data-task-id attribute or
@@ -408,8 +412,8 @@
     var taskId = getHashTaskId();
     var dlg = document.getElementById('task-modal');
     if (taskId) {
-      if (dlg && !dlg.open) {
-        htmx.ajax('GET', '/tasks/' + taskId, { target: '#task-modal', swap: 'innerHTML' });
+      if (dlg && (!dlg.open || extractModalTaskId() !== taskId)) {
+        htmx.ajax('GET', '/tasks/' + encodeURIComponent(taskId), { target: '#task-modal', swap: 'innerHTML' });
       }
     } else {
       if (dlg && dlg.open) {
@@ -422,63 +426,61 @@
   document.addEventListener('DOMContentLoaded', function () {
     var taskId = getHashTaskId();
     if (taskId) {
-      htmx.ajax('GET', '/tasks/' + taskId, { target: '#task-modal', swap: 'innerHTML' });
+      htmx.ajax('GET', '/tasks/' + encodeURIComponent(taskId), { target: '#task-modal', swap: 'innerHTML' });
     }
   });
 
-  // Pause HTMX polling swaps while inline editing or dragging is active
-  // Track in-flight filter requests to suppress stale polling swaps
-  var filterRequestInFlight = false;
+  // Background refreshes leave focused controls, selections and pointer targets intact.
+  var liveMarkup = new WeakMap();
+  var pendingLiveMarkup = new WeakMap();
+
+  function canRefresh(target) {
+    var active = document.activeElement;
+    var selection = window.getSelection();
+    return !target.contains(active)
+      && !target.querySelector('tr:hover, .board-card:hover, a:hover, button:hover, summary:hover')
+      && !(selection && !selection.isCollapsed && target.contains(selection.anchorNode))
+      && !document.querySelector('[data-editable].editing, .board-card.dragging, .board-card.drag-pending, dialog[open]');
+  }
+
   document.addEventListener('htmx:beforeRequest', function (e) {
-    var elt = e.detail.elt;
-    if (elt && (elt.closest('form') || elt.name === 'done_since')) {
-      filterRequestInFlight = true;
-    }
-  });
-  document.addEventListener('htmx:afterRequest', function (e) {
-    var elt = e.detail.elt;
-    if (elt && (elt.closest('form') || elt.name === 'done_since')) {
-      filterRequestInFlight = false;
-    }
+    var source = e.detail.elt;
+    if (source && source.matches('[data-live]') && !canRefresh(source)) e.preventDefault();
   });
 
   document.addEventListener('htmx:beforeSwap', function (e) {
-    // Guard board-columns polling swaps when dragging, done column collapsed, dropdown open, or filter request in-flight
-    if (e.detail.target && e.detail.target.id === 'board-columns') {
-      if (document.querySelector('.board-card.dragging')) {
-        e.detail.shouldSwap = false;
-        return;
-      }
-      if (localStorage.getItem('board-done-collapsed') === 'true') {
-        e.detail.shouldSwap = false;
-        return;
-      }
-      if (document.querySelector('.filter-multiselect-dropdown:not([hidden])')) {
-        e.detail.shouldSwap = false;
-        return;
-      }
-      if (filterRequestInFlight) {
-        e.detail.shouldSwap = false;
-        return;
-      }
+    var target = e.detail.target;
+    if (!target || !target.matches('[data-live]')) return;
+    var isPoll = target === e.detail.requestConfig.elt;
+    if (isPoll && !canRefresh(target)) {
+      e.detail.shouldSwap = false;
+      return;
     }
-    // Guard content-area/content-inner polling swaps when inline editing or dropdown open
-    if (e.detail.target && (e.detail.target.id === 'content-area' || e.detail.target.id === 'content-inner')) {
-      var editing = document.querySelector('[data-editable].editing');
-      var dropdownOpen = document.querySelector('.filter-multiselect-dropdown:not([hidden])');
-      if (editing || dropdownOpen) {
-        e.detail.shouldSwap = false;
-        return;
-      }
+    if (!e.detail.shouldSwap) return;
+    var incoming = new DOMParser().parseFromString(e.detail.serverResponse, 'text/html')
+      .getElementById(target.id);
+    if (!incoming) return;
+    var markup = incoming.innerHTML;
+    if (isPoll && (liveMarkup.get(target) === markup || target.innerHTML === markup)) {
+      liveMarkup.set(target, markup);
+      e.detail.shouldSwap = false;
+      return;
     }
-    // Guard tbody polling swaps (task list) when inline editing
-    if (e.detail.target && e.detail.target.tagName === 'TBODY') {
-      var editing = document.querySelector('[data-editable].editing');
-      if (editing) {
-        e.detail.shouldSwap = false;
-      }
-    }
+    pendingLiveMarkup.set(e.detail.xhr, { id: target.id, markup: markup });
   });
+
+  document.addEventListener('htmx:afterSwap', function (e) {
+    var snapshot = pendingLiveMarkup.get(e.detail.xhr);
+    if (!snapshot) return;
+    pendingLiveMarkup.delete(e.detail.xhr);
+    var replacement = document.getElementById(snapshot.id);
+    if (replacement) liveMarkup.set(replacement, snapshot.markup);
+  });
+
+  function refreshResults() {
+    var results = document.querySelector('#main [data-live]');
+    if (results) htmx.trigger(results, 'refresh');
+  }
 
   // Delegate close-button clicks inside the task modal
   document.addEventListener('click', function (e) {
@@ -515,7 +517,7 @@
 
     var body = {
       title: title ? title.value : '',
-      description: description && description.value.trim() ? description.value.trim() : null,
+      description: description && description.value.trim() ? description.value : null,
       priority: priority ? parseInt(priority.value, 10) : null,
       status: status ? status.value : null,
       tags: tagsVal,
@@ -524,7 +526,11 @@
     };
 
     var submitBtn = form.querySelector('[type="submit"]');
-    if (submitBtn) submitBtn.setAttribute('aria-busy', 'true');
+    if (submitBtn) {
+      if (submitBtn.disabled) return;
+      submitBtn.disabled = true;
+      submitBtn.setAttribute('aria-busy', 'true');
+    }
 
     fetch('/api/tasks', {
       method: 'POST',
@@ -532,20 +538,24 @@
       body: JSON.stringify(body)
     })
       .then(function (r) {
-        if (submitBtn) submitBtn.removeAttribute('aria-busy');
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.removeAttribute('aria-busy');
+        }
         if (r.status === 201) {
           var dlg = document.getElementById('task-modal');
           if (dlg) dlg.close();
           showToast('Task created', 'success');
-          // Reload the page so the new task appears immediately.
-          // A short delay lets the toast render before navigation.
-          setTimeout(function () { window.location.reload(); }, 600);
+          refreshResults();
         } else {
           showToast('Failed to create task', 'error');
         }
       })
       .catch(function () {
-        if (submitBtn) submitBtn.removeAttribute('aria-busy');
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.removeAttribute('aria-busy');
+        }
         showToast('Failed to create task', 'error');
       });
   });
@@ -554,7 +564,8 @@
 
   function initTagMultiSelect() {
     var wrapper = document.getElementById('tag-multiselect');
-    if (!wrapper) return;
+    if (!wrapper || wrapper._tagsInitialized) return;
+    wrapper._tagsInitialized = true;
 
     var trigger = document.getElementById('tag-multiselect-trigger');
     var dropdown = document.getElementById('tag-multiselect-dropdown');
@@ -587,9 +598,16 @@
         var pill = document.createElement('span');
         pill.className = 'filter-tag-pill';
         pill.setAttribute('data-tag', tag);
-        pill.innerHTML =
-          '<span class="filter-tag-pill-text">' + escapeHtml(tag) + '</span>' +
-          '<button class="filter-tag-pill-remove" type="button" aria-label="Remove ' + escapeHtml(tag) + ' filter" data-remove-tag="' + escapeHtml(tag) + '">&times;</button>';
+        var text = document.createElement('span');
+        text.className = 'filter-tag-pill-text';
+        text.textContent = tag;
+        var remove = document.createElement('button');
+        remove.className = 'filter-tag-pill-remove';
+        remove.type = 'button';
+        remove.setAttribute('aria-label', 'Remove ' + tag + ' filter');
+        remove.dataset.removeTag = tag;
+        remove.textContent = '×';
+        pill.append(text, remove);
         pillsContainer.appendChild(pill);
       });
       // Show/hide placeholder
@@ -618,12 +636,6 @@
           if (check) check.remove();
         }
       });
-    }
-
-    function escapeHtml(str) {
-      var d = document.createElement('div');
-      d.textContent = str;
-      return d.innerHTML;
     }
 
     function getTagOptions() {
@@ -754,13 +766,6 @@
       if (tag) toggleTag(tag);
     });
 
-    // Close dropdown when clicking outside
-    document.addEventListener('click', function (e) {
-      if (!wrapper.contains(e.target)) {
-        closeDropdown();
-      }
-    });
-
     // On init: sync state from hidden input (handles server-rendered selections)
     var initialTags = getSelectedTags();
     renderPills(initialTags);
@@ -769,6 +774,7 @@
 
   // Initialize on DOMContentLoaded and after HTMX settles (full content swaps)
   document.addEventListener('DOMContentLoaded', initTagMultiSelect);
+  document.addEventListener('htmx:historyRestore', initTagMultiSelect);
   document.addEventListener('htmx:afterSettle', function (e) {
     // Re-init only when the content-area or a parent was swapped (not tbody polling)
     var target = e.detail.target;
@@ -987,13 +993,6 @@
       });
     });
 
-    // Close when clicking outside
-    document.addEventListener('click', function (e) {
-      if (!container.contains(e.target)) {
-        closeDropdown();
-      }
-    });
-
     // Initial render (reflects pre-selected values from URL params)
     render();
   }
@@ -1165,32 +1164,28 @@
       });
     });
 
-    // Close when clicking outside
-    document.addEventListener('click', function (e) {
-      if (!container.contains(e.target)) {
-        closeDropdown();
-      }
-    });
-
     // Initial render (reflects pre-selected value from hidden input / URL params)
     render();
   }
 
   function initAllFilterMultiSelects() {
-    var containers = document.querySelectorAll('.filter-multiselect:not(.filter-singleselect)');
-    containers.forEach(function (c) {
-      // Reset init flag on re-init so we recreate state from current DOM/URL
-      c._msInitialized = false;
-      initFilterMultiSelect(c);
-    });
-    var singleContainers = document.querySelectorAll('.filter-singleselect');
-    singleContainers.forEach(function (c) {
-      c._ssInitialized = false;
-      initFilterSingleSelect(c);
-    });
+    document.querySelectorAll('.filter-multiselect:not(.filter-singleselect)').forEach(initFilterMultiSelect);
+    document.querySelectorAll('.filter-singleselect').forEach(initFilterSingleSelect);
   }
 
+  document.addEventListener('pointerdown', function (e) {
+    document.querySelectorAll('.filter-multiselect-dropdown:not([hidden]), .tag-multiselect-dropdown:not([hidden])')
+      .forEach(function (dropdown) {
+        var wrapper = dropdown.parentElement;
+        if (!wrapper.contains(e.target)) {
+          dropdown.hidden = true;
+          wrapper.querySelector('[aria-expanded]').setAttribute('aria-expanded', 'false');
+        }
+      });
+  });
+
   document.addEventListener('DOMContentLoaded', initAllFilterMultiSelects);
+  document.addEventListener('htmx:historyRestore', initAllFilterMultiSelects);
   document.addEventListener('htmx:afterSettle', function (e) {
     var target = e.detail.target;
     if (
@@ -1205,67 +1200,35 @@
 
   // --- Column collapse toggle ---
 
-  /**
-   * Initialize collapse/expand toggle buttons on board Done columns.
-   * State persists in localStorage keyed by data-storage-key attribute.
-   * Re-run after every HTMX poll to re-apply stored state.
-   */
-  function initColumnCollapse() {
-    document.querySelectorAll('.column-collapse-toggle').forEach(function (btn) {
-      // Skip if already wired (listener registered flag)
-      if (btn.dataset.collapseWired) return;
-      btn.dataset.collapseWired = 'true';
+  function setDoneCollapsed(button, collapsed) {
+    var cards = button.closest('.board-column').querySelector('.column-cards');
+    cards.hidden = collapsed;
+    button.textContent = collapsed ? '▸' : '▾';
+    button.setAttribute('aria-expanded', String(!collapsed));
+    button.setAttribute('aria-label', collapsed ? 'Expand done column' : 'Collapse done column');
+  }
 
-      btn.addEventListener('click', function () {
-        var column = btn.closest('.board-column');
-        var cards = column && column.querySelector('.column-cards');
-        if (!cards) return;
-        var storageKey = btn.dataset.storageKey || 'board-done-collapsed';
-        var isCollapsed = cards.style.display === 'none';
-        if (isCollapsed) {
-          cards.style.display = '';
-          btn.innerHTML = '&#9660;';
-          btn.setAttribute('aria-label', 'Collapse done column');
-          localStorage.setItem(storageKey, 'false');
-        } else {
-          cards.style.display = 'none';
-          btn.innerHTML = '&#9654;';
-          btn.setAttribute('aria-label', 'Expand done column');
-          localStorage.setItem(storageKey, 'true');
-        }
-      });
-    });
-
-    // Restore state for all collapse toggles (runs after every HTMX swap)
-    document.querySelectorAll('.column-collapse-toggle').forEach(function (btn) {
-      var storageKey = btn.dataset.storageKey || 'board-done-collapsed';
-      var column = btn.closest('.board-column');
-      var cards = column && column.querySelector('.column-cards');
-      if (!cards) return;
-      if (localStorage.getItem(storageKey) === 'true') {
-        cards.style.display = 'none';
-        btn.innerHTML = '&#9654;';
-        btn.setAttribute('aria-label', 'Expand done column');
-      } else {
-        cards.style.display = '';
-        btn.innerHTML = '&#9660;';
-        btn.setAttribute('aria-label', 'Collapse done column');
-      }
+  function restoreColumnCollapse() {
+    document.querySelectorAll('.column-collapse-toggle').forEach(function (button) {
+      setDoneCollapsed(button, localStorage.getItem(button.dataset.storageKey) === 'true');
     });
   }
 
-  document.addEventListener('DOMContentLoaded', initColumnCollapse);
-  document.addEventListener('htmx:afterSettle', initColumnCollapse);
+  document.addEventListener('click', function (e) {
+    var button = e.target.closest('.column-collapse-toggle');
+    if (!button) return;
+    var collapsed = button.getAttribute('aria-expanded') === 'true';
+    localStorage.setItem(button.dataset.storageKey, String(collapsed));
+    setDoneCollapsed(button, collapsed);
+  });
+
+  document.addEventListener('DOMContentLoaded', restoreColumnCollapse);
+  document.addEventListener('htmx:historyRestore', restoreColumnCollapse);
+  document.addEventListener('htmx:afterSwap', restoreColumnCollapse);
 
   // --- Inline editing ---
 
-  // Track elements currently being edited to avoid double-saves.
-  // WeakMap<HTMLElement, { saved: boolean, original: string }>
   var editingState = new WeakMap();
-
-  // Track elements with an in-flight PATCH request to prevent duplicate saves.
-  // Cleared when the fetch settles (success or failure).
-  var patchInFlight = new WeakSet();
 
   // Build a status badge HTML string for re-rendering after save
   function statusBadgeHtml(status) {
@@ -1278,49 +1241,46 @@
 
   // Build a priority badge HTML string for re-rendering after save
   function priorityBadgeHtml(priority) {
-    var icons = { 1: '▲', 2: '▬', 3: '▽', 4: '·' };
+    var icons = { 0: '▲', 1: '▲', 2: '▬', 3: '▽', 4: '·' };
     var icon = icons[priority] || '';
     return '<span class="badge priority-' + priority + '">' + icon + ' P' + priority + '</span>';
   }
 
-  // Build tag pill HTML for a single tag
-  function tagPillHtml(tag) {
-    return '<span class="tag-pill">' + tag + '</span>';
-  }
-
-  // Determine what HTML to show in the element after a successful save
-  function renderSavedValue(field, value) {
+  function renderSavedValue(el, field, value) {
     if (field === 'status') {
-      return statusBadgeHtml(value);
+      el.innerHTML = statusBadgeHtml(value);
+    } else if (field === 'priority') {
+      el.innerHTML = priorityBadgeHtml(value);
+    } else if (field === 'tags') {
+      el.replaceChildren();
+      value.forEach(function (tag) {
+        var pill = document.createElement('span');
+        pill.className = 'tag-pill';
+        pill.textContent = tag;
+        el.append(pill, ' ');
+      });
+      if (!value.length && el.classList.contains('meta-item')) el.textContent = 'Add tags';
+    } else {
+      el.textContent = value;
     }
-    if (field === 'priority') {
-      return priorityBadgeHtml(value);
-    }
-    if (field === 'tags') {
-      var tagList = Array.isArray(value) ? value : [value];
-      return tagList.map(tagPillHtml).join(' ');
-    }
-    // For plain text fields: escape HTML entities
-    var div = document.createElement('div');
-    div.textContent = value;
-    return div.innerHTML;
   }
 
-  // Finish editing: restore original content and remove editing class
-  function cancelEdit(el) {
+  function finishEdit(el, restoreFocus) {
     var state = editingState.get(el);
     if (!state) return;
+    state.keys.abort();
     editingState.delete(el);
     el.classList.remove('editing');
-    el.innerHTML = state.original;
+    el.removeAttribute('aria-busy');
+    if (state.trigger) state.trigger.disabled = false;
+    if (restoreFocus) (state.trigger || el).focus({ preventScroll: true });
   }
 
-  // Show a brief error flash on the element
-  function flashError(el) {
-    el.classList.add('edit-error');
-    setTimeout(function () {
-      el.classList.remove('edit-error');
-    }, 2000);
+  function cancelEdit(el, restoreFocus) {
+    var state = editingState.get(el);
+    if (!state || state.saving) return;
+    el.replaceChildren(...state.original);
+    finishEdit(el, restoreFocus);
   }
 
   // Validate a field value before committing.
@@ -1336,8 +1296,8 @@
       var trimmed = rawValue.trim();
       if (trimmed !== '') {
         var num = Number(trimmed);
-        if (!Number.isInteger(num) || num < 1 || num > 4) {
-          return { valid: false, message: 'priority must be a number between 1 and 4' };
+        if (!Number.isInteger(num) || num < 0 || num > 4) {
+          return { valid: false, message: 'priority must be a number between 0 and 4' };
         }
       }
     } else if (field === 'status') {
@@ -1349,87 +1309,66 @@
     return { valid: true };
   }
 
-  // Commit an edit: PATCH the server and update the DOM on success
+  // Keep the editor and its contents available if the request fails.
   function commitEdit(el, field, rawValue) {
     var state = editingState.get(el);
-    if (!state || state.saved) return;
-    // Prevent duplicate PATCHes: if a request is already in-flight for this element, bail out
-    if (patchInFlight.has(el)) return;
-
-    // Clean up tags before validation: trim each tag, remove empty ones
-    if (field === 'tags') {
-      rawValue = rawValue
-        .split(',')
-        .map(function (t) { return t.trim(); })
-        .filter(function (t) { return t.length > 0; })
-        .join(', ');
+    if (!state || state.saving) return;
+    if (rawValue === state.value) {
+      cancelEdit(el, el.contains(document.activeElement));
+      return;
     }
-
-    // Validate before firing the PATCH
     var validation = validateEdit(field, rawValue);
+    var input = el.querySelector('input, textarea, select');
     if (!validation.valid) {
-      // Keep edit mode active — do NOT set state.saved
       showToast(validation.message, 'error');
-      // Add a visual error indicator on the input
-      var inputEl = el.querySelector('input, textarea, select');
-      if (inputEl) {
-        inputEl.classList.add('edit-input-error');
-        // Remove error styling as soon as the user starts correcting the value
-        var clearError = function () { inputEl.classList.remove('edit-input-error'); };
-        inputEl.addEventListener('input', clearError, { once: true });
-        inputEl.addEventListener('change', clearError, { once: true });
-      }
+      input.classList.add('edit-input-error');
+      input.addEventListener('input', function () {
+        input.classList.remove('edit-input-error');
+      }, { once: true });
       return;
     }
 
-    state.saved = true;
-
-    var taskId = el.getAttribute('data-task-id');
-    if (!taskId) {
-      cancelEdit(el);
-      return;
-    }
-
-    // Build the PATCH payload
+    var value = rawValue;
+    if (field === 'priority') value = Number(rawValue);
+    if (field === 'tags') value = rawValue.split(',').map(function (tag) { return tag.trim(); }).filter(Boolean);
     var payload = {};
-    if (field === 'priority') {
-      payload[field] = parseInt(rawValue, 10);
-    } else if (field === 'tags') {
-      // Split comma-separated string into trimmed array, drop empty strings
-      payload[field] = rawValue
-        .split(',')
-        .map(function (t) { return t.trim(); })
-        .filter(function (t) { return t.length > 0; });
-    } else {
-      payload[field] = rawValue;
-    }
+    payload[field] = value;
+    var description = field === 'description';
+    var buttons = el.querySelectorAll('button');
+    var hadFocus = el.contains(document.activeElement);
+    state.saving = true;
+    el.setAttribute('aria-busy', 'true');
+    // Keep focus on the active control so a retry or successful save can return it.
+    if (input.tagName !== 'SELECT') input.readOnly = true;
+    buttons.forEach(function (button) { button.setAttribute('aria-disabled', 'true'); });
 
-    patchInFlight.add(el);
-    fetch('/api/tasks/' + taskId, {
+    fetch('/api/tasks/' + encodeURIComponent(el.dataset.taskId), {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      })
-      .then(function () {
-        // Successful save — render the new value
-        patchInFlight.delete(el);
-        editingState.delete(el);
-        el.classList.remove('editing');
-        el.innerHTML = renderSavedValue(field, payload[field]);
-      })
-      .catch(function () {
-        // Failed — revert to original, flash error, and show toast
-        patchInFlight.delete(el);
-        editingState.delete(el);
-        el.classList.remove('editing');
-        el.innerHTML = state.original;
-        flashError(el);
-        showToast('Failed to save — change not applied', 'error');
-      });
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': description ? 'text/html' : 'application/json'
+      },
+      body: JSON.stringify(payload)
+    }).then(function (response) {
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      return description ? response.text() : response.json();
+    }).then(function (saved) {
+      var restore = el.contains(document.activeElement) || (hadFocus && document.activeElement === document.body);
+      if (description) {
+        el.dataset.markdown = value;
+        el.innerHTML = saved || '<p class="muted">No description</p>';
+      } else {
+        renderSavedValue(el, field, saved[field]);
+      }
+      finishEdit(el, restore);
+    }).catch(function () {
+      state.saving = false;
+      el.removeAttribute('aria-busy');
+      input.readOnly = false;
+      buttons.forEach(function (button) { button.removeAttribute('aria-disabled'); });
+      if (input.tagName === 'SELECT') input.value = state.value;
+      showToast('Could not save the change', 'error');
+    });
   }
 
   // Create the appropriate input element for the given field
@@ -1454,8 +1393,8 @@
     } else if (field === 'priority') {
       input = document.createElement('select');
       input.className = 'inline-edit-select';
-      var priorityLabels = { 1: '▲ P1', 2: '▬ P2', 3: '▽ P3', 4: '· P4' };
-      [1, 2, 3, 4].forEach(function (p) {
+      var priorityLabels = { 0: '▲ P0', 1: '▲ P1', 2: '▬ P2', 3: '▽ P3', 4: '· P4' };
+      [0, 1, 2, 3, 4].forEach(function (p) {
         var o = document.createElement('option');
         o.value = String(p);
         o.textContent = priorityLabels[p] || 'P' + p;
@@ -1469,7 +1408,8 @@
       input.className = 'inline-edit-textarea';
       input.value = currentText;
       // Auto-size based on content
-      input.rows = Math.max(3, (currentText.match(/\n/g) || []).length + 2);
+      input.rows = Math.min(18, Math.max(6, currentText.split('\n').length + 1));
+      input.spellcheck = false;
     } else {
       // title, assignee, tags — plain text input
       input = document.createElement('input');
@@ -1487,171 +1427,104 @@
     if (field === 'tags') {
       // Tags are rendered as multiple .tag-pill spans — collect their text
       var pills = el.querySelectorAll('.tag-pill');
-      if (pills.length > 0) {
-        return Array.from(pills).map(function (p) { return p.textContent.trim(); }).join(', ');
-      }
+      return Array.from(pills).map(function (p) { return p.textContent.trim(); }).join(', ');
     }
-    // For all other fields: use trimmed textContent (works for badges too)
+    if (field === 'description') return el.dataset.markdown;
     return el.textContent.trim();
   }
 
-  // Create save (✓) and cancel (✗) action buttons for text-mode edits
   function createActionButtons(el, field, input) {
     var actions = document.createElement('span');
     actions.className = 'inline-edit-actions';
+    var description = field === 'description';
 
-    var saveBtn = document.createElement('button');
-    saveBtn.type = 'button';
-    saveBtn.className = 'inline-edit-btn inline-edit-btn-save';
-    saveBtn.setAttribute('aria-label', 'Save');
-    saveBtn.textContent = '\u2713'; // ✓
-
-    var cancelBtn = document.createElement('button');
-    cancelBtn.type = 'button';
-    cancelBtn.className = 'inline-edit-btn inline-edit-btn-cancel';
-    cancelBtn.setAttribute('aria-label', 'Cancel');
-    cancelBtn.textContent = '\u2715'; // ✕
-
-    // mousedown: prevent blur from firing before the click completes
-    saveBtn.addEventListener('mousedown', function (e) { e.preventDefault(); });
-    cancelBtn.addEventListener('mousedown', function (e) { e.preventDefault(); });
-
-    saveBtn.addEventListener('click', function () {
-      commitEdit(el, field, input.value);
+    [['Save', '✓', 'save'], ['Cancel', '×', 'cancel']].forEach(function (action) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = description ? 'quiet-button' : 'inline-edit-btn inline-edit-btn-' + action[2];
+      button.setAttribute('aria-label', action[0]);
+      button.textContent = description ? action[0] : action[1];
+      button.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      button.addEventListener('click', function () {
+        if (action[2] === 'save') commitEdit(el, field, input.value);
+        else cancelEdit(el, true);
+      });
+      actions.appendChild(button);
     });
-
-    cancelBtn.addEventListener('click', function () {
-      cancelEdit(el);
-    });
-
-    actions.appendChild(saveBtn);
-    actions.appendChild(cancelBtn);
     return actions;
   }
 
-  // Begin editing an element
   function beginEdit(el) {
-    // Already editing?
     if (editingState.has(el)) return;
-
-    var field = el.getAttribute('data-field');
-    if (!field) return;
-
-    var originalHtml = el.innerHTML;
-    var currentText = extractCurrentText(el, field);
-
-    editingState.set(el, { saved: false, original: originalHtml });
+    var field = el.dataset.field;
+    var description = field === 'description';
+    var input = createInput(field, extractCurrentText(el, field));
+    var trigger = description ? el.parentElement.querySelector('[data-edit-description]') : null;
+    var select = input.tagName === 'SELECT';
+    var state = {
+      original: Array.from(el.childNodes),
+      value: input.value,
+      trigger: trigger,
+      saving: false,
+      keys: new AbortController()
+    };
+    editingState.set(el, state);
+    input.setAttribute('aria-label', 'Edit ' + field);
     el.classList.add('editing');
 
-    var input = createInput(field, currentText);
-
-    // For select elements: insert directly (no wrapper/buttons), save on change
-    if (field === 'status' || field === 'priority') {
-      el.innerHTML = '';
-      el.appendChild(input);
-      input.focus();
-      input.addEventListener('change', function () {
-        commitEdit(el, field, input.value);
-      });
-      // Close on blur (handles click-away or same-value selection)
-      input.addEventListener('blur', function () {
-        var state = editingState.get(el);
-        if (state && !state.saved) {
-          cancelEdit(el);
-        }
-      });
-      // Escape: cancel edit (preventDefault stops native <dialog> close)
-      input.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          e.stopPropagation();
-          cancelEdit(el);
-        }
-      });
-      return;
+    if (select) {
+      el.replaceChildren(input);
+      input.addEventListener('change', function () { commitEdit(el, field, input.value); });
+      input.addEventListener('blur', function () { cancelEdit(el, false); });
+    } else {
+      var wrapper = document.createElement(description ? 'div' : 'span');
+      wrapper.className = 'inline-edit-wrapper';
+      wrapper.append(input, createActionButtons(el, field, input));
+      el.replaceChildren(wrapper);
     }
 
-    // For text inputs and textareas: wrap in flex row with save/cancel buttons
-    var wrapper = document.createElement('span');
-    wrapper.className = 'inline-edit-wrapper';
-    wrapper.appendChild(input);
+    input.focus({ preventScroll: !description });
+    if (!select && !description) input.select();
+    if (trigger) trigger.disabled = true;
 
-    // Textareas span the full width — buttons go below rather than inline
-    if (field !== 'description') {
-      wrapper.appendChild(createActionButtons(el, field, input));
-    }
-
-    el.innerHTML = '';
-    el.appendChild(wrapper);
-
-    // For description textarea, add a block-level actions row below
-    if (field === 'description') {
-      var blockActions = document.createElement('div');
-      blockActions.className = 'inline-edit-actions';
-      blockActions.style.marginTop = '0.35em';
-
-      var saveBtn2 = document.createElement('button');
-      saveBtn2.type = 'button';
-      saveBtn2.className = 'inline-edit-btn inline-edit-btn-save';
-      saveBtn2.setAttribute('aria-label', 'Save');
-      saveBtn2.textContent = '\u2713';
-
-      var cancelBtn2 = document.createElement('button');
-      cancelBtn2.type = 'button';
-      cancelBtn2.className = 'inline-edit-btn inline-edit-btn-cancel';
-      cancelBtn2.setAttribute('aria-label', 'Cancel');
-      cancelBtn2.textContent = '\u2715';
-
-      saveBtn2.addEventListener('mousedown', function (e) { e.preventDefault(); });
-      cancelBtn2.addEventListener('mousedown', function (e) { e.preventDefault(); });
-      saveBtn2.addEventListener('click', function () { commitEdit(el, field, input.value); });
-      cancelBtn2.addEventListener('click', function () { cancelEdit(el); });
-
-      blockActions.appendChild(saveBtn2);
-      blockActions.appendChild(cancelBtn2);
-      el.appendChild(blockActions);
-    }
-
-    // Focus and select text
-    input.focus();
-    if (input.select) {
-      input.select();
-    }
-
-    // For text inputs and textareas: save on Enter (text only), Escape cancels
-    input.addEventListener('keydown', function (e) {
+    el.addEventListener('keydown', function onEditKey(e) {
+      if (editingState.get(el) !== state) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        cancelEdit(el);
-        return;
-      }
-      // Enter saves for single-line inputs; Shift+Enter in textarea is a newline
-      if (e.key === 'Enter' && field !== 'description') {
+        cancelEdit(el, true);
+      } else if (e.key === 'Enter' && e.target === input && !select
+          && (!description || e.metaKey || e.ctrlKey) && !e.isComposing) {
         e.preventDefault();
         commitEdit(el, field, input.value);
       }
-    });
+    }, { signal: state.keys.signal });
 
-    // Save on blur (handles click-away), but only if not clicking an action button
-    input.addEventListener('blur', function (e) {
-      // relatedTarget is the element receiving focus — skip blur-save if it's one of our buttons
-      if (e.relatedTarget && e.relatedTarget.closest('.inline-edit-actions')) return;
-      var state = editingState.get(el);
-      if (state && !state.saved) {
-        commitEdit(el, field, input.value);
-      }
-    });
+    if (!description && !select) {
+      el.addEventListener('focusout', function (e) {
+        if (editingState.get(el) === state && !el.contains(e.relatedTarget)) {
+          commitEdit(el, field, input.value);
+        }
+      }, { signal: state.keys.signal });
+    }
   }
 
-  // Event delegation: clicks on [data-editable] elements begin editing
   document.addEventListener('click', function (e) {
-    var el = e.target.closest('[data-editable]');
-    if (!el) return;
-    // Don't start a new edit if we clicked inside an already-active input or action button
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
-    if (e.target.closest('.inline-edit-actions')) return;
-    beginEdit(el);
+    var trigger = e.target.closest('[data-edit-description]');
+    if (trigger) {
+      beginEdit(trigger.closest('.description-section').querySelector('[data-editable]'));
+      return;
+    }
+    if (e.target.closest('a, button, input, select, textarea')) return;
+    var el = e.target.closest('[data-editable]:not([data-field="description"])');
+    if (el && window.getSelection().isCollapsed) beginEdit(el);
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.defaultPrevented || (e.key !== 'Enter' && e.key !== ' ')) return;
+    if (!e.target.matches('[data-editable][tabindex]')) return;
+    e.preventDefault();
+    beginEdit(e.target);
   });
 
   // --- Board drag-and-drop ---
@@ -1667,7 +1540,7 @@
   // dragstart: capture source info and add .dragging class
   document.addEventListener('dragstart', function (e) {
     var card = e.target.closest('.board-card[data-task-id]');
-    if (!card) return;
+    if (!card || card.classList.contains('drag-pending')) return;
 
     var sourceColumn = getBoardColumn(card);
     if (!sourceColumn) return;
@@ -1676,7 +1549,6 @@
       card: card,
       taskId: card.getAttribute('data-task-id'),
       sourceColumn: sourceColumn,
-      sourceStatus: sourceColumn.getAttribute('data-status'),
     };
 
     card.classList.add('dragging');
@@ -1739,48 +1611,56 @@
 
     targetColumn.classList.remove('drag-over');
 
-    var targetStatus = targetColumn.getAttribute('data-status');
     var card = dragState.card;
-    var taskId = dragState.taskId;
-    var sourceColumn = dragState.sourceColumn;
-    // Clear dragState before async work to allow new drags
     dragState = null;
-
     card.classList.remove('dragging');
+    moveCard(card, targetColumn, false);
+  });
 
-    // No-op: dropped on the same column
-    if (targetStatus === sourceColumn.getAttribute('data-status')) {
-      return;
+  function updateColumnCount(column) {
+    var cards = column.querySelector('.column-cards');
+    var count = cards.querySelectorAll('.board-card').length;
+    column.querySelector('.column-count').textContent = count;
+    var empty = cards.querySelector('.column-empty');
+    if (!empty && count === 0) {
+      empty = document.createElement('p');
+      empty.className = 'column-empty';
+      empty.textContent = 'No issues';
+      cards.appendChild(empty);
     }
+    if (empty && count > 0) empty.remove();
+  }
 
-    // Optimistic UI: move card to target column immediately
-    targetColumn.appendChild(card);
-
-    // Show a pending indicator while the PATCH is in-flight
+  function moveCard(card, targetColumn, keepFocus) {
+    var sourceColumn = getBoardColumn(card);
+    if (sourceColumn === targetColumn || card.classList.contains('drag-pending')) return;
+    var sourceCards = card.parentNode;
+    var nextCard = card.nextElementSibling;
+    var targetStatus = targetColumn.dataset.status;
+    targetColumn.querySelector('.column-cards').appendChild(card);
     card.classList.add('drag-pending');
+    updateColumnCount(sourceColumn);
+    updateColumnCount(targetColumn);
+    if (keepFocus) card.focus();
 
-    // PATCH the API to persist the status change
-    fetch('/api/tasks/' + taskId, {
+    fetch('/api/tasks/' + encodeURIComponent(card.dataset.taskId), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: targetStatus }),
-    })
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        // Success — card is already in the right column, remove pending indicator
-        card.classList.remove('drag-pending');
-      })
-      .catch(function () {
-        // Failure — revert card to its original column, flash error, and show toast
-        card.classList.remove('drag-pending');
-        sourceColumn.appendChild(card);
-        card.classList.add('drag-error');
-        setTimeout(function () {
-          card.classList.remove('drag-error');
-        }, 700);
-        showToast('Failed to move task — status not updated', 'error');
-      });
-  });
+      body: JSON.stringify({ status: targetStatus })
+    }).then(function (response) {
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      card.classList.remove('drag-pending');
+    }).catch(function () {
+      sourceCards.insertBefore(card, nextCard && nextCard.parentNode === sourceCards ? nextCard : null);
+      card.classList.remove('drag-pending');
+      updateColumnCount(sourceColumn);
+      updateColumnCount(targetColumn);
+      if (keepFocus) card.focus();
+      card.classList.add('drag-error');
+      setTimeout(function () { card.classList.remove('drag-error'); }, 700);
+      showToast('Could not move the issue', 'error');
+    });
+  }
 
   // --- Global keydown handler ---
 
@@ -1805,14 +1685,13 @@
       return;
     }
 
-    // Help overlay: ? fires even in inputs so users can always discover shortcuts
+    if (e.defaultPrevented || isTypingTarget(document.activeElement)) return;
     if (key === '?') {
       toggleHelp();
       return;
     }
 
-    // Remaining shortcuts only fire outside of form fields
-    if (isTypingTarget(document.activeElement)) return;
+    if (document.querySelector('dialog[open]')) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
 
     var path = currentPath();
@@ -1824,12 +1703,8 @@
 
     if (key === '/') {
       e.preventDefault();
-      // Open the tag multi-select dropdown; fall back to focusing the trigger
-      var trigger = document.getElementById('tag-multiselect-trigger');
-      if (trigger) {
-        trigger.focus();
-        trigger.click();
-      }
+      var search = document.getElementById('search-input');
+      if (search) search.focus();
       return;
     }
 
@@ -1880,7 +1755,10 @@
       }
       if (key === 'Enter') {
         var ci3 = getFocusedCardIndex(cards);
-        if (ci3 !== -1) cards[ci3].click();
+        if (ci3 !== -1 && document.activeElement === cards[ci3]) {
+          e.preventDefault();
+          cards[ci3].querySelector('a').click();
+        }
         return;
       }
     }
@@ -1896,58 +1774,16 @@
     if (!e.shiftKey) return;
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
 
-    // Only act when a .board-card (the article element) has focus
-    var card = document.activeElement;
-    if (!card || !card.classList.contains('board-card')) return;
-
-    e.preventDefault();
-
-    var column = card.closest('.board-column');
-    if (!column) return;
-
-    var currentStatus = column.getAttribute('data-status');
-    var currentIdx = KEYBOARD_DND_COLUMN_ORDER.indexOf(currentStatus);
-    if (currentIdx === -1) return; // card is in 'blocked' — not moveable via keyboard
-
+    var card = document.activeElement.closest('.board-card');
+    if (!card) return;
+    var column = getBoardColumn(card);
+    var current = KEYBOARD_DND_COLUMN_ORDER.indexOf(column.dataset.status);
+    if (current < 0) return;
     var direction = e.key === 'ArrowRight' ? 1 : -1;
-    var targetIdx = currentIdx + direction;
-    if (targetIdx < 0 || targetIdx >= KEYBOARD_DND_COLUMN_ORDER.length) return;
-
-    var targetStatus = KEYBOARD_DND_COLUMN_ORDER[targetIdx];
-    var taskId = card.getAttribute('data-task-id');
-    if (!taskId) return;
-
-    // Find target column element
-    var targetColumn = document.querySelector('.board-column[data-status="' + targetStatus + '"]');
-    if (!targetColumn) return;
-
-    // Optimistic UI: move card to target column immediately
-    targetColumn.appendChild(card);
-    card.focus(); // keep focus on the moved card
-
-    // Show pending indicator
-    card.classList.add('drag-pending');
-
-    // PATCH the API
-    fetch('/api/tasks/' + taskId, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: targetStatus }),
-    })
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        card.classList.remove('drag-pending');
-        var statusLabels = { open: 'Open', in_progress: 'In Progress', done: 'Done' };
-        showToast('Moved to ' + (statusLabels[targetStatus] || targetStatus), 'success', 2500);
-      })
-      .catch(function () {
-        card.classList.remove('drag-pending');
-        // Revert: move back to original column
-        column.appendChild(card);
-        card.focus();
-        card.classList.add('drag-error');
-        setTimeout(function () { card.classList.remove('drag-error'); }, 700);
-        showToast('Failed to move task — status not updated', 'error');
-      });
+    var status = KEYBOARD_DND_COLUMN_ORDER[current + direction];
+    if (!status) return;
+    e.preventDefault();
+    var target = column.parentElement.querySelector('.board-column[data-status="' + status + '"]');
+    if (target) moveCard(card, target, true);
   });
 })();

@@ -1088,14 +1088,8 @@ fn row_to_task(row: &rusqlite::Row) -> Task {
         description: row.get(2).ok(),
         status: Status::from_str(&status_str).unwrap_or(Status::Open),
         priority: row.get::<_, u8>(4).unwrap_or(2),
-        assignee: row
-            .get(5)
-            .ok()
-            .and_then(|v: String| if v.is_empty() { None } else { Some(v) }),
-        parent_id: row
-            .get(6)
-            .ok()
-            .and_then(|v: String| if v.is_empty() { None } else { Some(v) }),
+        assignee: row.get(5).ok().filter(|v: &String| !v.is_empty()),
+        parent_id: row.get(6).ok().filter(|v: &String| !v.is_empty()),
         tags: if tags_str.is_empty() {
             Vec::new()
         } else {

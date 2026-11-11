@@ -3,7 +3,7 @@ use cucumber::{given, then, when};
 use serde_json::{Value, json};
 
 use crate::TacksWorld;
-use crate::steps::web_api_steps::{http_patch, http_post};
+use crate::steps::web_api_steps::{http_patch, http_patch_accept, http_post};
 use crate::steps::web_steps::http_get;
 
 // ---------------------------------------------------------------------------
@@ -79,6 +79,13 @@ async fn i_patch_the_task_with(world: &mut TacksWorld, raw_body: String) {
         status, 200,
         "expected 200 from PATCH {path} but got {status}: {response_body}"
     );
+}
+
+#[when(expr = "I save the Markdown description {string} in the web editor")]
+async fn save_markdown_description(world: &mut TacksWorld, markdown: String) {
+    let id = world.last_task_id.as_ref().expect("no task id stored");
+    let path = format!("/api/tasks/{id}");
+    http_patch_accept(world, &path, json!({"description": markdown}), "text/html").await;
 }
 
 // ---------------------------------------------------------------------------

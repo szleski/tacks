@@ -4,15 +4,17 @@
 
 {% block content %}
 <div id="content-area">
+<header class="page-heading"><h1>Board</h1></header>
 
 <form method="get" action="/board"
       hx-get="/board"
       hx-trigger="change from:#board-epic-hidden-input, change from:#board-priority-hidden-input, change from:#board-done-since-select"
-      hx-target="#content-area"
-      hx-select="#content-area"
+      hx-target="#board-columns"
+      hx-select="#board-columns"
       hx-swap="outerHTML"
+      hx-sync="#content-area:replace"
       hx-push-url="true">
-  <div class="grid">
+  <div class="filter-bar">
     <div class="filter-multiselect" id="board-epic-multiselect">
       <div class="filter-multiselect-trigger" tabindex="0" aria-haspopup="listbox" aria-expanded="false" aria-label="Filter by epic">
         <span class="filter-multiselect-pills"></span>
@@ -31,6 +33,7 @@
         <span class="filter-multiselect-placeholder">All priorities</span>
       </div>
       <ul class="filter-multiselect-dropdown" role="listbox" aria-multiselectable="true" hidden>
+        <li role="option" data-value="0" data-label="▲ P0" data-badge-class="priority-0"><span class="badge priority-0">▲ P0</span></li>
         <li role="option" data-value="1" data-label="▲ P1" data-badge-class="priority-1"><span class="badge priority-1">▲ P1</span></li>
         <li role="option" data-value="2" data-label="▬ P2" data-badge-class="priority-2"><span class="badge priority-2">▬ P2</span></li>
         <li role="option" data-value="3" data-label="▽ P3" data-badge-class="priority-3"><span class="badge priority-3">▽ P3</span></li>
@@ -55,18 +58,18 @@
   </div>
 </form>
 
-<div class="grid" id="board-columns"
+<div class="board-grid" id="board-columns" data-live
      hx-get="/board{{ poll_query }}"
-     hx-trigger="every 2s [document.visibilityState === 'visible']"
+     hx-sync="#content-area:drop"
+     hx-trigger="every 2s [document.visibilityState === 'visible'], refresh"
      hx-target="#board-columns"
      hx-select="#board-columns"
-     hx-swap="outerHTML show:none"
-     aria-live="polite"
-     aria-atomic="false">
+     hx-swap="outerHTML show:none">
   <div class="board-column" data-status="open">
-    <h2>Open <span class="column-count">({{ open_tasks.len() }})</span></h2>
+    <h2>Open <span class="column-count">{{ open_tasks.len() }}</span></h2>
+    <div class="column-cards">
     {% for row in open_tasks %}
-    <article class="board-card" draggable="true" data-task-id="{{ row.task.id }}" tabindex="0" data-shortcut="Shift+→ to move right">
+    <article class="board-card" draggable="true" data-task-id="{{ row.task.id }}" tabindex="0">
       <div class="board-card-header">
         <a href="/tasks/{{ row.task.id }}"
            hx-get="/tasks/{{ row.task.id }}"
@@ -74,7 +77,7 @@
            hx-select="unset"
            hx-swap="innerHTML">{{ row.task.title }}</a>
         <span class="badge priority-{{ row.task.priority }}">
-          {%- if row.task.priority == 1 -%}▲ P1{%- else if row.task.priority == 2 -%}▬ P2{%- else if row.task.priority == 3 -%}▽ P3{%- else -%}· P4{%- endif -%}
+          {%- if row.task.priority == 0 -%}▲ P0{%- else if row.task.priority == 1 -%}▲ P1{%- else if row.task.priority == 2 -%}▬ P2{%- else if row.task.priority == 3 -%}▽ P3{%- else -%}· P4{%- endif -%}
         </span>
       </div>
       {% if row.blocked_count > 0 %}
@@ -84,11 +87,14 @@
       {% endif %}
     </article>
     {% endfor %}
+    {% if open_tasks.is_empty() %}<p class="column-empty">No issues</p>{% endif %}
+    </div>
   </div>
   <div class="board-column" data-status="in_progress">
-    <h2>In Progress <span class="column-count">({{ in_progress_tasks.len() }})</span></h2>
+    <h2>In Progress <span class="column-count">{{ in_progress_tasks.len() }}</span></h2>
+    <div class="column-cards">
     {% for row in in_progress_tasks %}
-    <article class="board-card" draggable="true" data-task-id="{{ row.task.id }}" tabindex="0" data-shortcut="Shift+←/→ to move">
+    <article class="board-card" draggable="true" data-task-id="{{ row.task.id }}" tabindex="0">
       <div class="board-card-header">
         <a href="/tasks/{{ row.task.id }}"
            hx-get="/tasks/{{ row.task.id }}"
@@ -96,7 +102,7 @@
            hx-select="unset"
            hx-swap="innerHTML">{{ row.task.title }}</a>
         <span class="badge priority-{{ row.task.priority }}">
-          {%- if row.task.priority == 1 -%}▲ P1{%- else if row.task.priority == 2 -%}▬ P2{%- else if row.task.priority == 3 -%}▽ P3{%- else -%}· P4{%- endif -%}
+          {%- if row.task.priority == 0 -%}▲ P0{%- else if row.task.priority == 1 -%}▲ P1{%- else if row.task.priority == 2 -%}▬ P2{%- else if row.task.priority == 3 -%}▽ P3{%- else -%}· P4{%- endif -%}
         </span>
       </div>
       {% if row.blocked_count > 0 %}
@@ -106,9 +112,12 @@
       {% endif %}
     </article>
     {% endfor %}
+    {% if in_progress_tasks.is_empty() %}<p class="column-empty">No issues</p>{% endif %}
+    </div>
   </div>
   <div class="board-column" data-status="blocked">
-    <h2>Blocked <span class="column-count">({{ blocked_tasks.len() }})</span></h2>
+    <h2>Blocked <span class="column-count">{{ blocked_tasks.len() }}</span></h2>
+    <div class="column-cards">
     {% for row in blocked_tasks %}
     <article class="board-card" draggable="true" data-task-id="{{ row.task.id }}" tabindex="0">
       <div class="board-card-header">
@@ -118,7 +127,7 @@
            hx-select="unset"
            hx-swap="innerHTML">{{ row.task.title }}</a>
         <span class="badge priority-{{ row.task.priority }}">
-          {%- if row.task.priority == 1 -%}▲ P1{%- else if row.task.priority == 2 -%}▬ P2{%- else if row.task.priority == 3 -%}▽ P3{%- else -%}· P4{%- endif -%}
+          {%- if row.task.priority == 0 -%}▲ P0{%- else if row.task.priority == 1 -%}▲ P1{%- else if row.task.priority == 2 -%}▬ P2{%- else if row.task.priority == 3 -%}▽ P3{%- else -%}· P4{%- endif -%}
         </span>
       </div>
       {% if row.blocked_count > 0 %}
@@ -128,15 +137,17 @@
       {% endif %}
     </article>
     {% endfor %}
+    {% if blocked_tasks.is_empty() %}<p class="column-empty">No issues</p>{% endif %}
+    </div>
   </div>
   <div class="board-column" data-status="done">
     <h2>
       <button class="column-collapse-toggle" data-column="done" data-storage-key="board-done-collapsed" aria-label="Toggle done column">&#9660;</button>
-      Done <span class="column-count">({{ done_tasks.len() }})</span>
+      Done <span class="column-count">{{ done_tasks.len() }}</span>
     </h2>
     <div class="column-cards">
     {% for row in done_tasks %}
-    <article class="board-card" draggable="true" data-task-id="{{ row.task.id }}" tabindex="0" data-shortcut="Shift+← to move left">
+    <article class="board-card" draggable="true" data-task-id="{{ row.task.id }}" tabindex="0">
       <div class="board-card-header">
         <a href="/tasks/{{ row.task.id }}"
            hx-get="/tasks/{{ row.task.id }}"
@@ -144,7 +155,7 @@
            hx-select="unset"
            hx-swap="innerHTML">{{ row.task.title }}</a>
         <span class="badge priority-{{ row.task.priority }}">
-          {%- if row.task.priority == 1 -%}▲ P1{%- else if row.task.priority == 2 -%}▬ P2{%- else if row.task.priority == 3 -%}▽ P3{%- else -%}· P4{%- endif -%}
+          {%- if row.task.priority == 0 -%}▲ P0{%- else if row.task.priority == 1 -%}▲ P1{%- else if row.task.priority == 2 -%}▬ P2{%- else if row.task.priority == 3 -%}▽ P3{%- else -%}· P4{%- endif -%}
         </span>
       </div>
       {% if row.blocked_count > 0 %}
@@ -154,11 +165,10 @@
       {% endif %}
     </article>
     {% endfor %}
+    {% if done_tasks.is_empty() %}<p class="column-empty">No issues</p>{% endif %}
     </div>
   </div>
 </div>
-{% if open_tasks.is_empty() && in_progress_tasks.is_empty() && blocked_tasks.is_empty() && done_tasks.is_empty() %}
-<p style="text-align:center;color:var(--pico-muted-color);padding:2rem 0">No tasks match your filters</p>
-{% endif %}
+
 </div>
 {% endblock %}

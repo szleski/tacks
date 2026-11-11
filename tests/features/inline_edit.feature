@@ -41,3 +41,11 @@ Feature: Inline editing of task fields
     Given the task created_at is stored
     When I PATCH the task with '{"title": "Different title"}'
     Then the task created_at should not change
+
+  Scenario: The web editor returns formatted HTML and preserves the Markdown source
+    When I save the Markdown description "Use **bold**, `inline code` and [a link](/tasks)." in the web editor
+    Then the response status is 200
+    And the response content type is "text/html"
+    And the response body contains "<strong>bold</strong>"
+    And the response body contains "<code>inline code</code>"
+    And the task description should be "Use **bold**, `inline code` and [a link](/tasks)."

@@ -2,13 +2,13 @@ use askama::Template;
 use axum::Form;
 use axum::Json;
 use axum::extract::{Path, Query, State};
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::sync::atomic::Ordering;
 
-use crate::models::{Comment, Task, validate_close_reason};
+use crate::models::{Comment, Status, Task, validate_close_reason};
 use crate::web::AppState;
 use crate::web::errors::AppError;
 use crate::web::render_markdown;
@@ -40,6 +40,8 @@ pub struct CreateTaskBody {
     pub title: Option<String>,
     pub description: Option<String>,
     pub priority: Option<u8>,
+    pub status: Option<String>,
+    pub assignee: Option<String>,
     pub tags: Option<Vec<String>>,
     pub parent_id: Option<String>,
 }
@@ -153,10 +155,18 @@ pub async fn api_create_task(
         t
     };
 
+    let status = body
+        .status
+        .as_deref()
+        .map(str::parse::<Status>)
+        .transpose()
+        .map_err(AppError::Validation)?
+        .unwrap_or(Status::Open);
     let priority = body.priority.unwrap_or(2);
-    let description = body.description.clone();
-    let tags = body.tags.clone().unwrap_or_default();
-    let parent_id = body.parent_id.clone();
+    let description = body.description;
+    let assignee = body.assignee;
+    let tags = body.tags.unwrap_or_default();
+    let parent_id = body.parent_id;
 
     let db = state.db.clone();
     let result = tokio::task::spawn_blocking(move || -> Result<Task, String> {
@@ -174,14 +184,14 @@ pub async fn api_create_task(
 
         let now = chrono::Utc::now();
         let task = Task {
-            id: id.clone(),
-            title: title.clone(),
-            description: description.clone(),
-            status: crate::models::Status::Open,
+            id,
+            title,
+            description,
+            status,
             priority,
-            assignee: None,
-            parent_id: parent_id.clone(),
-            tags: tags.clone(),
+            assignee,
+            parent_id,
+            tags,
             created_at: now,
             updated_at: now,
             close_reason: None,
@@ -191,7 +201,7 @@ pub async fn api_create_task(
         db.insert_task(&task)?;
 
         // Auto-tag parent as epic when a child is created, and sync epic status
-        if let Some(ref pid) = parent_id {
+        if let Some(ref pid) = task.parent_id {
             let mut parent_tags = db.get_task_tags(pid)?;
             if !parent_tags.contains(&"epic".to_string()) {
                 parent_tags.push("epic".to_string());
@@ -382,11 +392,18 @@ pub async fn api_show_task(
 }
 
 /// PATCH /api/tasks/:id — Update task fields (200 or 404).
+///
+/// Description edits may request rendered Markdown with `Accept: text/html`.
 pub async fn api_update_task(
     State(state): State<AppState>,
     Path(id): Path<String>,
+    headers: HeaderMap,
     Json(body): Json<UpdateTaskBody>,
-) -> Result<impl IntoResponse, AppError> {
+) -> Result<Response, AppError> {
+    let render_description = body.description.is_some()
+        && headers
+            .get(header::ACCEPT)
+            .is_some_and(|accept| accept == "text/html");
     let db = state.db.clone();
     let result = tokio::task::spawn_blocking(move || -> Result<Task, String> {
         let db = db.lock().unwrap();
@@ -438,7 +455,11 @@ pub async fn api_update_task(
     .map_err(|e| AppError::Internal(e.to_string()))?;
 
     match result {
-        Ok(task) => Ok(Json(task)),
+        Ok(task) if render_description => Ok(Html(render_markdown(
+            task.description.as_deref().unwrap_or_default(),
+        ))
+        .into_response()),
+        Ok(task) => Ok(Json(task).into_response()),
         Err(e) if e.contains("not found") => Err(AppError::NotFound(e)),
         Err(e) => Err(AppError::Internal(e)),
     }
@@ -911,7 +932,7 @@ struct TaskDetailTemplate {
     dependents: Vec<Task>,
     comments: Vec<Comment>,
     /// Pre-rendered HTML for the task description (markdown → HTML, safe to output unescaped).
-    description_html: Option<String>,
+    description_html: String,
     /// Pre-rendered HTML for each comment body (markdown → HTML, safe to output unescaped).
     comment_bodies_html: Vec<String>,
 }
@@ -928,7 +949,7 @@ struct TaskDetailFragmentTemplate {
     dependents: Vec<Task>,
     comments: Vec<Comment>,
     /// Pre-rendered HTML for the task description (markdown → HTML, safe to output unescaped).
-    description_html: Option<String>,
+    description_html: String,
     /// Pre-rendered HTML for each comment body (markdown → HTML, safe to output unescaped).
     comment_bodies_html: Vec<String>,
 }
@@ -1251,10 +1272,7 @@ pub async fn task_create_form(
         return Err(AppError::Validation("title is required".to_string()));
     }
     let priority = body.priority.unwrap_or(2);
-    let description = body
-        .description
-        .filter(|d| !d.trim().is_empty())
-        .map(|d| d.trim().to_string());
+    let description = body.description.filter(|d| !d.trim().is_empty());
 
     let db = state.db.clone();
     tokio::task::spawn_blocking(move || -> Result<(), String> {
@@ -1342,7 +1360,12 @@ pub async fn task_detail(
         Ok(Some(data)) => {
             // Pre-render description and comment bodies from markdown to HTML.
             // The |safe filter in the template prevents double-escaping.
-            let description_html = data.task.description.as_deref().map(render_markdown);
+            let description_html = data
+                .task
+                .description
+                .as_deref()
+                .map(render_markdown)
+                .unwrap_or_default();
             let comment_bodies_html = data
                 .comments
                 .iter()

@@ -1,13 +1,13 @@
-<article>
-  <header>
-    <h3 data-editable data-field="title" data-task-id="{{ task.id }}">{{ task.title }}</h3>
-    <button aria-label="Close" rel="prev" onclick="document.getElementById('task-modal').close()"></button>
+<article class="issue-detail">
+  <header class="dialog-heading">
+    <h3 class="detail-title" data-editable tabindex="0" data-field="title" data-task-id="{{ task.id }}">{{ task.title }}</h3>
+    <button aria-label="Close" rel="prev" ></button>
   </header>
 
   <div class="task-meta-row">
     <span class="meta-item"><span class="meta-label">ID</span> {{ task.id }}</span>
     <span class="meta-sep">·</span>
-    <span class="meta-item" data-editable data-field="status" data-task-id="{{ task.id }}">
+    <span class="meta-item" data-editable tabindex="0" data-field="status" data-task-id="{{ task.id }}">
       <span class="badge status-{{ task.status }}">
         {%- if task.status == crate::models::Status::Open -%}○ Open
         {%- else if task.status == crate::models::Status::InProgress -%}◐ In Progress
@@ -16,27 +16,23 @@
       </span>
     </span>
     <span class="meta-sep">·</span>
-    <span class="meta-item" data-editable data-field="priority" data-task-id="{{ task.id }}"><span class="badge priority-{{ task.priority }}">
-      {%- if task.priority == 1 -%}▲ P1{%- else if task.priority == 2 -%}▬ P2{%- else if task.priority == 3 -%}▽ P3{%- else -%}· P4{%- endif -%}
+    <span class="meta-item" data-editable tabindex="0" data-field="priority" data-task-id="{{ task.id }}"><span class="badge priority-{{ task.priority }}">
+      {%- if task.priority == 0 -%}▲ P0{%- else if task.priority == 1 -%}▲ P1{%- else if task.priority == 2 -%}▬ P2{%- else if task.priority == 3 -%}▽ P3{%- else -%}· P4{%- endif -%}
     </span></span>
     {% if let Some(p) = parent.as_ref() %}
     <span class="meta-sep">·</span>
     <span class="meta-item"><span class="meta-label">Epic</span> <a href="/epics/{{ p.id }}" class="epic-badge">{{ p.id }}: {{ p.title }}</a></span>
     {% endif %}
     <span class="meta-sep">·</span>
-    <span class="meta-item" data-editable data-field="tags" data-task-id="{{ task.id }}">
+    <span class="meta-item" data-editable tabindex="0" data-field="tags" data-task-id="{{ task.id }}">
       {% for tag in &task.tags %}<span class="tag-pill">{{ tag }}</span>{% endfor %}
-      {% if task.tags.is_empty() %}<span class="meta-label">Tags</span> —{% endif %}
+      {% if task.tags.is_empty() %}Add tags{% endif %}
     </span>
     <span class="meta-sep">·</span>
     <span class="meta-item"><span class="meta-label">Updated</span> {{ task.updated_at.format("%b %d, %Y %H:%M") }}</span>
   </div>
 
-  {% if let Some(html) = description_html.as_deref() %}
-  <div class="task-description markdown-body" data-editable data-field="description" data-task-id="{{ task.id }}">{{ html|safe }}</div>
-  {% else %}
-  <div class="task-description" data-editable data-field="description" data-task-id="{{ task.id }}">—</div>
-  {% endif %}
+  {% include "partials/task_description.html" %}
 
   {% if !blockers.is_empty() || !dependents.is_empty() %}
   <section class="dep-tree-section">
@@ -63,10 +59,10 @@
   {% endif %}
 
   {% if !comments.is_empty() %}
-  <section>
+  <section class="comments-section">
     <h4>Comments</h4>
     {% for (i, comment) in comments.iter().enumerate() %}
-    <article>
+    <article class="comment">
       <small>{{ comment.created_at.format("%b %d, %Y %H:%M") }}</small>
       <div class="markdown-body">{{ comment_bodies_html[i]|safe }}</div>
     </article>
@@ -75,6 +71,6 @@
   {% endif %}
 
   <footer>
-    <a href="/tasks/{{ task.id }}" role="button" class="secondary outline">View full page</a>
+    <a href="/tasks/{{ task.id }}" class="back-link">Open full issue ↗</a>
   </footer>
 </article>

@@ -1,0 +1,7 @@
+<section class="description-section">
+  <header class="section-heading">
+    <h2>Description</h2>
+    <button type="button" class="quiet-button" data-edit-description>Edit</button>
+  </header>
+  <div class="task-description markdown-body" data-editable data-field="description" data-task-id="{{ task.id }}" data-markdown="{{ task.description.as_deref().unwrap_or_default() }}">{% if description_html.is_empty() %}<p class="muted">No description</p>{% else %}{{ description_html|safe }}{% endif %}</div>
+</section>

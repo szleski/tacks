@@ -3,23 +3,18 @@
 {% block title %}Epics — Tacks{% endblock %}
 
 {% block content %}
-<div id="content-area"
-     hx-get="/epics{{ poll_query }}"
-     hx-trigger="every 2s [document.visibilityState === 'visible']"
-     hx-target="this"
-     hx-select="#content-area"
-     hx-swap="outerHTML show:none"
-     aria-live="polite"
-     aria-atomic="false">
+<div id="content-area">
+<header class="page-heading"><h1>Epics</h1></header>
 
 <form method="get" action="/epics"
       hx-get="/epics"
       hx-trigger="change from:#epics-status-hidden-input, change from:#epics-priority-hidden-input"
-      hx-target="#content-area"
-      hx-select="#content-area"
+      hx-target="#epic-rows"
+      hx-select="#epic-rows"
       hx-swap="outerHTML"
+      hx-sync="#content-area:replace"
       hx-push-url="true">
-  <div class="grid">
+  <div class="filter-bar">
     <div class="filter-multiselect" id="epics-status-multiselect">
       <div class="filter-multiselect-trigger" tabindex="0" aria-haspopup="listbox" aria-expanded="false" aria-label="Filter by status">
         <span class="filter-multiselect-pills"></span>
@@ -51,7 +46,7 @@
   </div>
 </form>
 
-<table>
+<table class="work-table epic-table">
   <thead>
     <tr>
       <th>ID</th>
@@ -61,16 +56,19 @@
       <th>Progress</th>
     </tr>
   </thead>
-  <tbody>
+  <tbody id="epic-rows" data-live hx-get="/epics{{ poll_query }}"
+         hx-select="#epic-rows" hx-swap="outerHTML show:none"
+         hx-sync="#content-area:drop"
+         hx-trigger="every 2s [document.visibilityState === 'visible'], refresh">
     {% if epics.is_empty() %}
     <tr>
-      <td colspan="5" style="text-align:center;color:var(--pico-muted-color);padding:2rem 0">No epics yet</td>
+      <td colspan="5" class="empty-state">{% if status_filter.is_some() || priority_filter.is_some() %}No epics match your filters{% else %}No epics yet{% endif %}</td>
     </tr>
     {% else %}
     {% for ep in epics %}
     <tr>
-      <td><a href="/epics/{{ ep.task.id }}">{{ ep.task.id }}</a></td>
-      <td>{{ ep.task.title }}</td>
+      <td class="issue-id"><a href="/epics/{{ ep.task.id }}">{{ ep.task.id }}</a></td>
+      <td><a class="epic-title" href="/epics/{{ ep.task.id }}">{{ ep.task.title }}</a></td>
       <td><span class="badge status-{{ ep.task.status }}">
         {%- if ep.task.status == crate::models::Status::Open -%}○ Open
         {%- else if ep.task.status == crate::models::Status::InProgress -%}◐ In Progress
@@ -84,7 +82,16 @@
         {%- else if ep.task.priority == 3 -%}▽ P3
         {%- else -%}· P4{%- endif -%}
       </span></td>
-      <td><span class="progress-done">{{ ep.children_done }}</span>/<span class="progress-wip">{{ ep.children_in_progress }}</span>/<span class="progress-open">{{ ep.children_open }}</span> <span class="progress-total">({{ ep.children_total }})</span></td>
+      <td>
+        <div class="epic-progress" role="img" aria-label="{{ ep.children_done }} done, {{ ep.children_in_progress }} in progress, {{ ep.children_open }} remaining out of {{ ep.children_total }} tasks">
+          <span class="progress-track" aria-hidden="true">
+            <span class="progress-done" style="flex-grow:{{ ep.children_done }}"></span>
+            <span class="progress-wip" style="flex-grow:{{ ep.children_in_progress }}"></span>
+            <span style="flex-grow:{{ ep.children_open }}"></span>
+          </span>
+          <span aria-hidden="true">{{ ep.children_done }}/{{ ep.children_total }}</span>
+        </div>
+      </td>
     </tr>
     {% endfor %}
     {% endif %}

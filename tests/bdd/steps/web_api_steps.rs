@@ -36,6 +36,15 @@ pub async fn http_post(world: &mut TacksWorld, path: &str, body: Value) -> (u16,
 /// Perform a PATCH request with a JSON body against the running test server.
 /// Stores the status code and body on the world.
 pub async fn http_patch(world: &mut TacksWorld, path: &str, body: Value) -> (u16, String) {
+    http_patch_accept(world, path, body, "application/json").await
+}
+
+pub async fn http_patch_accept(
+    world: &mut TacksWorld,
+    path: &str,
+    body: Value,
+    accept: &str,
+) -> (u16, String) {
     let port = world
         .server_port
         .expect("server not started — add 'Given the web server is running'");
@@ -43,11 +52,17 @@ pub async fn http_patch(world: &mut TacksWorld, path: &str, body: Value) -> (u16
     let resp = world
         .http_client
         .patch(&url)
+        .header(reqwest::header::ACCEPT, accept)
         .json(&body)
         .send()
         .await
         .unwrap_or_else(|e| panic!("PATCH {url} failed: {e}"));
     let status = resp.status().as_u16();
+    world.last_response_content_type = resp
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_owned);
     let body_text = resp
         .text()
         .await

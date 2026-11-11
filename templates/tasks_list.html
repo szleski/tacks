@@ -4,15 +4,21 @@
 
 {% block content %}
 <div id="content-area">
+<header class="page-heading"><h1>Issues</h1></header>
 
 <form method="get" action="/tasks"
       hx-get="/tasks"
-      hx-trigger="change from:#status-hidden-input, change from:#priority-hidden-input, change from:#tag-hidden-input, keyup changed delay:300ms from:input[name='search']"
-      hx-target="#content-area"
-      hx-select="#content-area"
+      hx-trigger="change from:#status-hidden-input, change from:#priority-hidden-input, change from:#tag-hidden-input, input changed delay:250ms from:#search-input, submit"
+      hx-target="#issue-rows"
+      hx-select="#issue-rows"
       hx-swap="outerHTML"
+      hx-sync="#content-area:replace"
       hx-push-url="true">
-  <div class="grid">
+  <div class="filter-bar">
+    <div role="search" class="issue-search">
+      <label for="search-input" class="sr-only">Search tasks by title</label>
+      <input type="search" id="search-input" name="search" placeholder="Search issues…" value="{{ search_filter.as_deref().unwrap_or_default() }}" aria-label="Search tasks by title" aria-keyshortcuts="/">
+    </div>
     <div class="filter-multiselect" id="status-multiselect">
       <div class="filter-multiselect-trigger" tabindex="0" aria-haspopup="listbox" aria-expanded="false" aria-label="Filter by status">
         <span class="filter-multiselect-pills"></span>
@@ -32,6 +38,7 @@
         <span class="filter-multiselect-placeholder">All priorities</span>
       </div>
       <ul class="filter-multiselect-dropdown" role="listbox" aria-multiselectable="true" hidden>
+        <li role="option" data-value="0" data-label="▲ P0" data-badge-class="priority-0"><span class="badge priority-0">▲ P0</span></li>
         <li role="option" data-value="1" data-label="▲ P1" data-badge-class="priority-1"><span class="badge priority-1">▲ P1</span></li>
         <li role="option" data-value="2" data-label="▬ P2" data-badge-class="priority-2"><span class="badge priority-2">▬ P2</span></li>
         <li role="option" data-value="3" data-label="▽ P3" data-badge-class="priority-3"><span class="badge priority-3">▽ P3</span></li>
@@ -69,18 +76,15 @@
       </ul>
       <input type="hidden" name="tag" value="{{ tag_filter.as_deref().unwrap_or_default() }}" id="tag-hidden-input">
     </div>
-    <div role="search" style="position:relative">
-      <label for="search-input" class="sr-only">Search tasks by title</label>
-      <input type="text" id="search-input" name="search" placeholder="Search titles..." value="{{ search_filter.as_deref().unwrap_or_default() }}" aria-label="Search tasks by title" data-shortcut="/ to focus">
-    </div>
+
     <noscript><button type="submit">Filter</button></noscript>
   </div>
 </form>
 
-<table>
+<table class="work-table issue-table">
   <thead>
     <tr>
-      <th>ID</th>
+      <th scope="col" class="issue-id">Issue</th>
       <th>Title</th>
       <th>Status</th>
       <th>Priority</th>
@@ -88,32 +92,31 @@
       <th>Updated</th>
     </tr>
   </thead>
-  <tbody hx-get="/tasks{{ poll_query }}"
-         hx-trigger="every 2s [document.visibilityState === 'visible']"
-         hx-select="tbody"
-         hx-swap="outerHTML show:none"
-         aria-live="polite"
-         aria-atomic="false">
+  <tbody id="issue-rows" data-live hx-get="/tasks{{ poll_query }}"
+         hx-sync="#content-area:drop"
+         hx-trigger="every 2s [document.visibilityState === 'visible'], refresh"
+         hx-select="#issue-rows"
+         hx-swap="outerHTML show:none">
     {% if tasks.is_empty() %}
     <tr>
-      <td colspan="6" style="text-align:center;color:var(--pico-muted-color);padding:2rem 0">
+      <td colspan="6" class="empty-state">
         {%- if has_filters -%}
         No tasks match your filters
         {%- else -%}
-        No tasks yet — create one to get started
+        No issues yet. Use New Issue to get started.
         {%- endif -%}
       </td>
     </tr>
     {% else %}
     {% for row in tasks %}
     <tr tabindex="-1" data-href="/tasks/{{ row.task.id }}">
-      <td><a href="/tasks/{{ row.task.id }}"
+      <td class="issue-id"><a href="/tasks/{{ row.task.id }}"
              hx-get="/tasks/{{ row.task.id }}"
              hx-target="#task-modal"
              hx-select="unset"
              hx-swap="innerHTML">{{ row.task.id }}</a></td>
       <td>
-        <span data-editable data-field="title" data-task-id="{{ row.task.id }}">{{ row.task.title }}</span>
+        <span data-editable tabindex="0" data-field="title" data-task-id="{{ row.task.id }}">{{ row.task.title }}</span>
         {% if row.blocked_count > 0 %}
         <span class="badge dep-blocked" title="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}" aria-label="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}">⊘ Blocked</span>
         {% endif %}
@@ -121,22 +124,22 @@
         <span class="subtask-count" title="{{ row.children_done }} of {{ row.children_total }} subtasks done">{{ row.children_done }}/{{ row.children_total }}</span>
         {% endif %}
         {% if let (Some(pid), Some(ptitle)) = (row.parent_id.as_deref(), row.parent_title.as_deref()) %}
-        <a href="/epics/{{ pid }}" class="epic-badge">{{ pid }}: {{ ptitle }}</a>
+        <a href="/epics/{{ pid }}" class="epic-badge" title="{{ ptitle }}">{{ ptitle }}</a>
         {% endif %}
       </td>
-      <td data-editable data-field="status" data-task-id="{{ row.task.id }}"><span class="badge status-{{ row.task.status }}">
+      <td data-editable tabindex="0" data-field="status" data-task-id="{{ row.task.id }}"><span class="badge status-{{ row.task.status }}">
         {%- if row.task.status == crate::models::Status::Open -%}○ Open
         {%- else if row.task.status == crate::models::Status::InProgress -%}◐ In Progress
         {%- else if row.task.status == crate::models::Status::Done -%}✓ Done
         {%- else -%}⊘ Blocked{%- endif -%}
       </span></td>
-      <td data-editable data-field="priority" data-task-id="{{ row.task.id }}"><span class="badge priority-{{ row.task.priority }}">
-        {%- if row.task.priority == 1 -%}▲ P1
+      <td data-editable tabindex="0" data-field="priority" data-task-id="{{ row.task.id }}"><span class="badge priority-{{ row.task.priority }}">
+        {%- if row.task.priority == 0 -%}▲ P0{%- else if row.task.priority == 1 -%}▲ P1
         {%- else if row.task.priority == 2 -%}▬ P2
         {%- else if row.task.priority == 3 -%}▽ P3
         {%- else -%}· P4{%- endif -%}
       </span></td>
-      <td data-editable data-field="tags" data-task-id="{{ row.task.id }}">{% for tag in &row.task.tags %}<span class="tag-pill">{{ tag }}</span> {% endfor %}</td>
+      <td data-editable tabindex="0" data-field="tags" data-task-id="{{ row.task.id }}">{% for tag in &row.task.tags %}<span class="tag-pill">{{ tag }}</span> {% endfor %}</td>
       <td class="col-updated">{{ row.task.updated_at.format("%b %d %H:%M") }}</td>
     </tr>
     {% endfor %}

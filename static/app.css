@@ -265,7 +265,7 @@
 
 /* Priority badges — light theme */
 /* 20% backgrounds and darkened text ensure ≥4.5:1 contrast for WCAG AA */
-.badge.priority-1 {
+.badge:is(.priority-0, .priority-1) {
   background-color: color-mix(in srgb, #ef4444 20%, transparent);
   color: #991b1b;
 }
@@ -300,120 +300,259 @@
   border-color: color-mix(in srgb, var(--pico-muted-color, #9ca3af) 30%, transparent);
 }
 
-/* Keyboard shortcut tooltip — shown on hover via [data-shortcut] attribute */
-/* Uses CSS ::after to render the shortcut hint without a tooltip library */
-[data-shortcut] {
-  position: relative;
+/* Workspace */
+:root {
+  --pico-font-family-sans-serif: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --pico-font-family-monospace: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  --pico-font-size: 15px;
+  --pico-line-height: 1.5;
+  --pico-border-radius: 0.45rem;
+  --pico-spacing: 1rem;
+  --pico-form-element-spacing-vertical: 0.45rem;
+  --pico-form-element-spacing-horizontal: 0.65rem;
 }
 
-[data-shortcut]:hover::after,
-[data-shortcut]:focus-visible::after {
-  content: attr(data-shortcut);
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: var(--pico-contrast-background, #1a1a2e);
-  color: var(--pico-contrast-inverse, #f8f8f2);
-  font-size: 0.7rem;
-  font-weight: 500;
-  padding: 0.2em 0.55em;
-  border-radius: var(--pico-border-radius, 0.25rem);
+:root:not([data-theme="dark"]) {
+  color-scheme: light;
+  --pico-background-color: #f8f8fa;
+  --pico-color: #24242d;
+  --pico-muted-color: #626270;
+  --pico-muted-border-color: #e3e3eb;
+  --pico-form-element-background-color: #fff;
+  --pico-form-element-border-color: #d8d8e1;
+  --surface: #fff;
+  --surface-raised: #fff;
+  --surface-hover: #f1f0f5;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --pico-background-color: #141417;
+  --pico-color: #e5e5ec;
+  --pico-muted-color: #a0a0ae;
+  --pico-muted-border-color: #2c2c35;
+  --pico-form-element-background-color: #18181d;
+  --pico-form-element-border-color: #373741;
+  --pico-form-element-placeholder-color: #a0a0ae;
+  --pico-h1-color: #f4f4f8;
+  --pico-h2-color: #e5e5ec;
+  --pico-h3-color: #e5e5ec;
+  --surface: #19191e;
+  --surface-raised: #202027;
+  --surface-hover: #26262f;
+}
+
+html { scrollbar-gutter: stable; }
+body { min-height: 100dvh; }
+
+body > .app-header {
+  padding: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--pico-muted-border-color);
+}
+
+nav.nav-tabs,
+body > main.container {
+  width: min(100%, 100rem);
+  max-width: none;
+  padding-inline: clamp(1rem, 3vw, 2.75rem);
+}
+
+nav.nav-tabs {
+  justify-content: flex-start;
+  min-height: 3.7rem;
+  gap: 1.25rem;
+}
+
+nav.nav-tabs .workspace-actions { margin-left: auto; }
+
+nav.nav-tabs ul {
+  gap: 0.25rem;
+  margin: 0;
+}
+
+nav.nav-tabs li { padding: 0; }
+
+nav.nav-tabs a {
+  color: var(--pico-muted-color);
+  text-decoration: none;
+  margin: 0;
+  padding: 0.4rem 0.7rem;
+  border-radius: var(--pico-border-radius);
   white-space: nowrap;
-  pointer-events: none;
-  z-index: 300;
-  opacity: 0.92;
 }
 
-[data-theme="dark"] [data-shortcut]:hover::after,
-[data-theme="dark"] [data-shortcut]:focus-visible::after {
-  background-color: #e5e7eb;
-  color: #111827;
+nav.nav-tabs a:hover,
+nav.nav-tabs a.nav-active {
+  color: var(--pico-color);
+  background: var(--surface-hover);
 }
 
-/* Shortcut tooltips near top of page: show below to avoid viewport clipping */
-.board-card[data-shortcut]:hover::after,
-.board-card[data-shortcut]:focus-visible::after,
-.new-issue-btn[data-shortcut]:hover::after,
-.new-issue-btn[data-shortcut]:focus-visible::after {
-  bottom: auto;
-  top: calc(100% + 6px);
+nav.nav-tabs .brand {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  padding-left: 0;
+  color: var(--pico-h1-color, var(--pico-color));
+  font-weight: 700;
+  letter-spacing: -0.025em;
 }
 
-/* Timestamp column: never wrap */
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 0.45rem;
+  background: var(--pico-primary-background);
+  color: var(--pico-primary-inverse);
+  font: 700 0.95rem var(--pico-font-family-monospace);
+}
+
+.nav-tabs .new-issue-btn {
+  margin: 0 0 0 0.55rem;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+body > main.container {
+  padding-block: clamp(1.1rem, 3vw, 2rem) 2.5rem;
+}
+
+.page-heading { margin-bottom: 0.85rem; }
+.page-heading h1, .detail-title {
+  margin: 0;
+  font-size: clamp(1.55rem, 2.5vw, 2rem);
+  font-weight: 650;
+  letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
+}
+
+.filter-bar {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+}
+
+.filter-bar > div { min-width: 0; max-width: 100%; }
+
+.filter-bar .issue-search {
+  flex: 1 1 13rem;
+  max-width: 24rem;
+}
+
+.filter-bar input[type="search"],
+.filter-bar .filter-multiselect-trigger,
+.filter-bar .tag-multiselect-trigger,
+.view-toggle-row .filter-multiselect-trigger {
+  min-height: 2.35rem;
+  padding: 0.35rem 0.65rem;
+  margin: 0;
+  border-radius: var(--pico-border-radius);
+  background-color: var(--surface);
+  font-size: 0.875rem;
+  color: var(--pico-color);
+}
+
+.filter-bar input[type="search"]:not([type="hidden"]) {
+  padding-left: 2rem;
+  margin-bottom: 0;
+  border-radius: var(--pico-border-radius);
+}
+.filter-bar .tag-multiselect-caret { font-size: 0.55em; }
+
+.work-table {
+  table-layout: fixed;
+  margin: 0;
+  border: 1px solid var(--pico-muted-border-color);
+  border-spacing: 0;
+  border-collapse: separate;
+  border-radius: 0.65rem;
+  background: var(--surface);
+}
+
+.work-table th,
+.work-table td {
+  padding: 0.55rem 0.75rem;
+  border-color: var(--pico-muted-border-color);
+  background: transparent;
+  overflow-wrap: anywhere;
+}
+
+.work-table th {
+  color: var(--pico-muted-color);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.work-table tbody tr:is(:hover, :focus-within) { background: var(--surface-hover); }
+.work-table tbody tr:last-child td { border-bottom: 0; }
+.work-table th:first-child { width: 7rem; }
+.work-table th:nth-child(3) { width: 8rem; }
+.work-table th:nth-child(4) { width: 5rem; white-space: nowrap; }
+.epic-table th:nth-child(5) { width: 11rem; }
+.issue-table th:nth-child(5) { width: 20%; }
+.issue-table th:last-child { width: 8.4rem; }
+
+.issue-id,
 .col-updated {
-  white-space: nowrap;
+  color: var(--pico-muted-color);
+  font: 0.8rem var(--pico-font-family-monospace);
 }
 
-/* Board card: clean compact layout */
-.board-card {
-  padding-bottom: 0.5rem;
+.issue-id a { color: inherit; text-decoration: none; }
+.issue-id a:hover { color: var(--pico-primary); text-decoration: underline; }
+.issue-table [data-field="title"], .epic-title { font-weight: 550; }
+
+.epic-title, .board-column .board-card-header a {
+  color: var(--pico-color);
+  text-decoration: none;
 }
 
-/* Board card header: title link + priority pill on one line */
-.board-card-header {
+.epic-title:hover { text-decoration: underline; }
+
+.work-table .epic-badge {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  color: var(--pico-muted-color);
+  background: transparent;
+  border-color: var(--pico-muted-border-color);
+}
+
+.work-table .epic-badge:hover { color: var(--pico-primary); }
+
+.epic-progress {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-}
-
-.board-card-header a {
-  flex: 1;
-  min-width: 0;
-  overflow-wrap: break-word;
-  word-break: break-word;
-}
-
-/* Nav tab bar */
-nav.nav-tabs {
-  border-bottom: 1px solid var(--pico-muted-border-color, #d1d5db);
-  margin-bottom: 0;
-}
-
-/* Increase spacing between nav items */
-nav.nav-tabs ul:last-child {
   gap: 0.5rem;
+  font: 0.8rem var(--pico-font-family-monospace);
+  color: var(--pico-muted-color);
 }
 
-nav.nav-tabs ul:last-child li a {
-  /* Remove Pico's default link decoration from nav items */
-  text-decoration: none;
-  color: var(--pico-muted-color, #6b7280);
-  padding: 0.5rem 0.1rem;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px; /* overlap the nav border-bottom */
-  display: inline-block;
-  font-weight: 400;
-  transition: color 0.15s, border-color 0.15s;
+.progress-track {
+  display: flex;
+  flex: 1;
+  height: 0.3rem;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: var(--pico-muted-border-color);
 }
 
-nav.nav-tabs ul:last-child li a:hover {
-  color: var(--pico-color, inherit);
-  border-bottom-color: var(--pico-muted-border-color, #d1d5db);
-}
+.progress-track .progress-done { background: #52ae86; }
+.progress-track .progress-wip { background: #db9e42; }
+.work-table .col-updated { white-space: nowrap; }
 
-nav.nav-tabs ul:last-child li a.nav-active {
-  color: var(--pico-primary, #7c3aed);
-  border-bottom-color: var(--pico-primary, #7c3aed);
-  font-weight: 600;
-}
-
-[data-theme="dark"] nav.nav-tabs {
-  border-bottom-color: var(--pico-muted-border-color, #374151);
-}
-
-[data-theme="dark"] nav.nav-tabs ul:last-child li a {
-  color: var(--pico-muted-color, #9ca3af);
-}
-
-[data-theme="dark"] nav.nav-tabs ul:last-child li a:hover {
-  color: var(--pico-color, #e5e7eb);
-  border-bottom-color: var(--pico-muted-border-color, #374151);
-}
-
-[data-theme="dark"] nav.nav-tabs ul:last-child li a.nav-active {
-  color: var(--pico-primary, #a78bfa);
-  border-bottom-color: var(--pico-primary, #a78bfa);
+.work-table td.empty-state {
+  color: var(--pico-muted-color);
+  text-align: center;
+  padding: 2rem 1rem;
 }
 
 /* Settings gear dropdown */
@@ -533,7 +672,6 @@ nav.nav-tabs ul:last-child li a.nav-active {
   color: var(--pico-color, inherit);
   white-space: normal;
   overflow-wrap: break-word;
-  word-break: break-word;
 }
 
 /* Epic badge — small linked pill used in list/board/detail views */
@@ -875,7 +1013,7 @@ a.view-toggle-btn:hover {
 
 /* Priority badges — dark theme */
 /* Backgrounds at 28-30%, lighter text for ≥4.5:1 on dark backgrounds */
-[data-theme="dark"] .badge.priority-1 {
+[data-theme="dark"] .badge:is(.priority-0, .priority-1) {
   background-color: color-mix(in srgb, #ef4444 30%, transparent);
   color: #fca5a5;
 }
@@ -890,46 +1028,13 @@ a.view-toggle-btn:hover {
 
 /* --- Inline editing --- */
 
-/* Element in edit mode */
-[data-editable].editing {
-  outline: 2px solid var(--pico-primary, #7c3aed);
-  outline-offset: 2px;
-  border-radius: var(--pico-border-radius, 0.25rem);
-  background-color: color-mix(in srgb, var(--pico-primary, #7c3aed) 5%, transparent);
-  padding: 0.1em 0.25em;
-  margin: -0.1em -0.25em;
-  transition: outline 0.1s, background-color 0.1s;
-}
-
-/* Hint cursor on editable elements */
-[data-editable]:not(.editing) {
+[data-editable]:not(.editing, [data-field="description"]) {
   cursor: pointer;
 }
 
-/* Prevent pencil icon from wrapping on short-content cells (badges) */
-td[data-editable]:not(.editing) {
-  white-space: nowrap;
-}
-
-[data-editable]:not(.editing):hover {
-  text-decoration: underline dotted var(--pico-muted-color, #6b7280);
-}
-
-/* Pencil icon affordance — appears on hover to indicate the field is editable */
-[data-editable]:not(.editing)::after {
-  content: '';
-  display: none;
-}
-
-[data-editable]:not(.editing):hover::after {
-  content: ' \270E'; /* ✎ pencil */
-  display: inline;
-  font-size: 0.75em;
-  opacity: 0.65;
-  margin-left: 0.2em;
-  vertical-align: middle;
-  font-style: normal;
-  text-decoration: none;
+[data-editable]:not(.editing, [data-field="description"]):hover {
+  text-decoration: underline dotted var(--pico-muted-color);
+  text-underline-offset: 0.2em;
 }
 
 /* Editable cell wrapper: flex row so input + buttons stay on one line */
@@ -1066,19 +1171,6 @@ td[data-editable]:not(.editing) {
   background: var(--pico-form-element-background-color, #1e1e2e);
 }
 
-/* Error flash — briefly shown on save failure */
-[data-editable].edit-error {
-  outline-color: #ef4444;
-  background-color: color-mix(in srgb, #ef4444 8%, transparent);
-  animation: edit-error-shake 0.3s ease;
-}
-
-@keyframes edit-error-shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-4px); }
-  75% { transform: translateX(4px); }
-}
-
 /* Validation error indicator on the input/select/textarea itself */
 .edit-input-error {
   outline: 2px solid #ef4444 !important;
@@ -1090,54 +1182,156 @@ td[data-editable]:not(.editing) {
   background-color: color-mix(in srgb, #ef4444 12%, transparent) !important;
 }
 
-/* Modal title: leave room for the Pico CSS close button (rel=prev, abs-positioned top-right) */
-#task-modal article header {
+/* Issue detail and dialogs */
+article.issue-detail {
+  max-width: 58rem;
+  margin: 0 auto;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 0.7rem;
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.detail-title { margin-bottom: 0.6rem; }
+.task-meta-row { gap: 0.4rem 0.65rem; }
+.task-meta-row .meta-sep { display: none; }
+.meta-item { min-width: 0; white-space: normal; flex-wrap: wrap; }
+
+.description-section,
+.comments-section,
+.issue-detail .dep-tree-section {
+  border-top: 1px solid var(--pico-muted-border-color);
+  padding-top: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.section-heading {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.6rem;
 }
 
-#task-modal article header h3 {
+.section-heading h2,
+.comments-section :is(h2, h4) {
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+
+.section-heading h2 { margin: 0; }
+.muted, .comment small { color: var(--pico-muted-color); }
+
+.task-description {
   margin-bottom: 0;
+  word-break: normal;
+  overflow-wrap: anywhere;
 }
 
-#task-modal article header button[aria-label="Close"] {
+.task-description > :last-child,
+.comment .markdown-body > :last-child { margin-bottom: 0; }
+
+.quiet-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.9rem;
+  padding: 0.2rem 0.55rem;
+  margin: 0;
+  border: 1px solid var(--pico-muted-border-color);
+  color: var(--pico-color);
+  background: var(--surface);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.quiet-button:hover { background: var(--surface-hover); color: var(--pico-color); }
+
+[data-field="description"] .inline-edit-wrapper {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+}
+
+[data-field="description"] .inline-edit-actions {
+  align-self: end;
+  gap: 0.35rem;
+}
+
+[data-field="description"] .inline-edit-btn-save,
+[data-field="description"] .quiet-button:first-child {
+  color: var(--pico-primary-inverse);
+  background: var(--pico-primary-background);
+}
+
+.inline-edit-textarea {
+  font: 0.875rem/1.6 var(--pico-font-family-monospace);
+  background: var(--pico-form-element-background-color);
+}
+
+.comment {
+  background: var(--surface);
+  border: 1px solid var(--pico-muted-border-color);
+  box-shadow: none;
+  padding: 0.7rem 0.85rem;
+}
+
+#task-modal {
+  padding: 0.75rem;
+  background: rgb(0 0 0 / 0.55);
+}
+
+#task-modal > article {
+  background: var(--surface);
+  width: min(100%, 49rem);
+  max-width: none;
+  max-height: min(90dvh, 54rem);
+  padding: clamp(0.85rem, 3vw, 1.65rem);
+  margin: auto;
+  border: 1px solid var(--pico-form-element-border-color);
+  border-radius: 0.8rem;
+  box-shadow: 0 1.25rem 3rem rgb(0 0 0 / 0.24);
+}
+
+#task-modal .dialog-heading,
+#task-modal article > footer {
   margin: 0;
   padding: 0;
-  font-size: 1.25rem;
-  line-height: 1;
-  opacity: 0.7;
+  border: 0;
+  background: transparent;
 }
 
-/* Compact form: tighter spacing for modal forms */
+#task-modal .dialog-heading {
+  position: relative;
+  padding-right: 2rem;
+  margin-bottom: 0.7rem;
+}
+
+#task-modal .dialog-heading h3 { margin: 0; }
+
+#task-modal .dialog-heading button[rel="prev"] {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 1.65rem;
+  height: 1.65rem;
+  margin: 0;
+  background-position: center;
+  border-radius: var(--pico-border-radius);
+}
+#task-modal .dialog-heading button[rel="prev"]:hover { background-color: var(--surface-hover); }
+
+#task-modal > article > footer .back-link { margin: 0; }
+.compact-form .grid { gap: 0.5rem; }
 .compact-form input,
 .compact-form textarea,
-.compact-form select {
-  margin-bottom: 0.5rem;
-}
-
-.compact-form .grid {
-  row-gap: 0;
-}
-
-/* Filter bar: bottom-align controls so selects match multiselect trigger height. */
-form .grid {
-  align-items: end;
-}
-
-/* Pill-rounded right edge on the last filter trigger to match Pico's search input styling */
-form .grid > .filter-multiselect:last-of-type .filter-multiselect-trigger,
-form .grid > .tag-multiselect:last-of-type .tag-multiselect-trigger {
-  border-radius: 0.5rem 100px 100px 0.5rem;
-}
-
-/* Strip Pico's default bottom margin on form controls inside the filter bar
-   so selects, inputs, and search containers align with multiselect triggers. */
-form .grid > select,
-form .grid input,
-form .grid > [role="search"] {
-  margin-bottom: 0;
-}
+.compact-form select { margin-bottom: 0.65rem; }
 
 /* Epic detail: constrain the done-since select next to the view toggle. */
 .view-toggle-row > select {
@@ -1167,79 +1361,91 @@ form .grid > [role="search"] {
   cursor: grabbing;
 }
 
-/* Space between board filters and columns */
-#board-columns {
-  margin-top: 0.75rem;
+/* Board */
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+  align-items: start;
 }
 
-/* Board column: subtle background tint + top accent border per status */
 .board-column {
-  border-radius: 0.5rem;
-  padding: 0.75rem;
-  border-top: 3px solid transparent;
+  min-width: 0;
+  min-height: 8rem;
+  border-radius: 0.65rem;
+  padding: 0.55rem;
+  background: var(--surface);
+  border: 1px solid var(--pico-muted-border-color);
+  --status-color: #7b879f;
 }
 
-.board-column[data-status="open"] {
-  background: rgba(156, 163, 175, 0.06);
-  border-top-color: #9ca3af;
+.board-column[data-status="in_progress"] { --status-color: #db9e42; }
+.board-column[data-status="blocked"] { --status-color: #e16b76; }
+.board-column[data-status="done"] { --status-color: #52ae86; }
+
+.board-column :is(h2, h3) {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.2rem 0.2rem 0.6rem;
+  font-size: 0.9rem;
+  font-weight: 650;
 }
 
-.board-column[data-status="in_progress"] {
-  background: rgba(59, 130, 246, 0.08);
-  border-top-color: #3b82f6;
+.board-column :is(h2, h3)::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--status-color);
 }
 
-.board-column[data-status="blocked"] {
-  background: rgba(239, 68, 68, 0.06);
-  border-top-color: #ef4444;
-}
-
-.board-column[data-status="done"] {
-  background: rgba(34, 197, 94, 0.06);
-  border-top-color: #22c55e;
-}
-
-/* Dark mode: slightly lighter backgrounds for elevation effect */
-[data-theme="dark"] .board-column[data-status="open"] {
-  background: rgba(156, 163, 175, 0.04);
-}
-
-[data-theme="dark"] .board-column[data-status="in_progress"] {
-  background: rgba(96, 165, 250, 0.06);
-}
-
-[data-theme="dark"] .board-column[data-status="blocked"] {
-  background: rgba(248, 113, 113, 0.05);
-}
-
-[data-theme="dark"] .board-column[data-status="done"] {
-  background: rgba(74, 222, 128, 0.04);
-}
-
-/* Board column heading: space below so drag-over highlight starts clear of the title */
-.board-column h2,
-.board-column h3 {
-  margin-bottom: 0.75rem;
-}
-
-/* Column task count — subtle parenthetical next to column heading */
 .column-count {
-  font-size: 0.75em;
-  font-weight: 400;
-  color: var(--pico-muted-color, #6b7280);
-}
-/* Column receiving a drag: highlight as valid drop target */
-.board-column.drag-over {
-  background-color: color-mix(in srgb, var(--pico-primary, #7c3aed) 8%, transparent);
-  border-radius: var(--pico-border-radius, 0.25rem);
-  outline: 2px dashed color-mix(in srgb, var(--pico-primary, #7c3aed) 50%, transparent);
-  outline-offset: 4px;
-  padding: 0.5rem;
+  color: var(--pico-muted-color);
+  font: 0.75rem var(--pico-font-family-monospace);
 }
 
-[data-theme="dark"] .board-column.drag-over {
-  background-color: color-mix(in srgb, var(--pico-primary, #a78bfa) 12%, transparent);
-  outline-color: color-mix(in srgb, var(--pico-primary, #a78bfa) 60%, transparent);
+.column-empty {
+  margin: 0;
+  padding: 0.65rem 0.25rem;
+  color: var(--pico-muted-color);
+  font-size: 0.85rem;
+}
+
+.board-card {
+  margin: 0 0 0.4rem;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: 0.45rem;
+  background: var(--surface-raised);
+  box-shadow: none;
+}
+
+.board-card:last-of-type { margin-bottom: 0; }
+.board-card:hover { border-color: var(--pico-form-element-border-color); }
+
+.board-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.board-card-header a {
+  color: var(--pico-color);
+  font-size: 0.9rem;
+  font-weight: 550;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.board-card-header a:hover { text-decoration: underline; }
+.board-card-blocked { margin-top: 0.2rem; }
+.board-column.drag-over {
+  outline: 1px dashed var(--pico-primary);
+  outline-offset: -1px;
 }
 
 /* Brief red flash when a drop fails */
@@ -1385,7 +1591,7 @@ button:focus,
 }
 
 /* Nav tab links */
-nav.nav-tabs ul:last-child li a:focus-visible {
+nav.nav-tabs a:focus-visible {
   outline: 2px solid var(--pico-primary, #7c3aed);
   outline-offset: 2px;
   border-radius: 2px;
@@ -1538,121 +1744,40 @@ a.view-toggle-btn:focus-visible {
   outline-color: var(--pico-primary, #a78bfa);
 }
 
-/* --- Responsive Design --- */
-
-/*
- * Tablet breakpoint: 768px and below.
- *
- * - Board: switch from 4-column grid to 2×2 grid.
- * - Filter bar: allow grid cells to wrap (2 per row instead of 4+).
- * - Table: Tags and Updated columns hidden; table gets horizontal scroll
- *   wrapper (applied via overflow-x:auto on a parent in JS — or directly on
- *   the table element which Pico does not constrain).
- * - Nav: keep horizontal but compress spacing a little.
- * - Settings dropdown: stay right-aligned (already is via `right: 0`).
- */
-@media (max-width: 768px) {
-  /* Board: 2×2 grid instead of 4 equal columns */
-  #board-columns.grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  /* Filter bar: 2 columns instead of 4+ */
-  form .grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  /* Task table: allow horizontal scrolling so layout does not break */
-  table {
-    display: block;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* Hide lower-priority columns on tablets */
-  table thead th:nth-child(5),  /* Tags */
-  table thead th:nth-child(6),  /* Updated */
-  table tbody td:nth-child(5),  /* Tags */
-  table tbody td:nth-child(6) { /* Updated */
-    display: none;
-  }
-
-  /* Modals: limit width and add sensible padding */
-  dialog article {
-    max-width: 90vw;
-    margin: auto;
-  }
-
-  /* Reduce container padding slightly to reclaim horizontal space */
-  .container {
-    padding-left: var(--pico-spacing, 1rem);
-    padding-right: var(--pico-spacing, 1rem);
-  }
+@media (max-width: 850px) {
+  .board-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .issue-table :is(th, td):nth-child(5),
+  .issue-table :is(th, td):nth-child(6):not([colspan]) { display: none; }
 }
 
-/*
- * Mobile breakpoint: 480px and below.
- *
- * - Board: single column, vertical scroll.
- * - Filter bar: stack all filters in a single column.
- * - Nav: compress to allow all items to fit; "Tacks" brand is kept.
- * - Table: only ID and Title visible; horizontal scroll for the rest.
- * - Modal: full-width.
- * - Toast: narrower, left-anchored so it does not clip on narrow screens.
- */
+@media (max-width: 540px) {
+  nav.nav-tabs,
+  body > main.container { padding-inline: 0.7rem; }
+
+  nav.nav-tabs { gap: 0.45rem; }
+  nav.nav-tabs ul { gap: 0; }
+  nav.nav-tabs a { padding-inline: 0.35rem; font-size: 0.85rem; }
+  nav.nav-tabs .brand { font-size: 0; gap: 0; }
+  .nav-tabs .new-issue-btn { margin-left: 0.25rem; font-size: 0.8rem; }
+  .filter-bar .issue-search { flex-basis: 100%; max-width: none; }
+  .work-table :is(th, td) { padding: 0.45rem 0.35rem; }
+  .work-table th:first-child { width: 4.65rem; }
+  .work-table th:nth-child(3) { width: 6rem; }
+  .work-table th:nth-child(4) { width: 3.5rem; }
+  .epic-table th:nth-child(5) { width: 4.2rem; }
+  .issue-id { font-size: 0.7rem; }
+  .epic-badge { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
+  .issue-table .epic-badge { white-space: nowrap; }
+  .epic-progress .progress-track { display: none; }
+  .board-grid { grid-template-columns: 1fr; }
+  .board-column { min-height: auto; }
+}
+
 @media (max-width: 480px) {
-  /* Board: single-column stack */
-  #board-columns.grid {
-    grid-template-columns: 1fr;
-  }
-
-  /* Filter bar: single column, each filter full-width */
-  form .grid {
-    grid-template-columns: 1fr;
-  }
-
-  /* Also hide Status and Priority columns on mobile — keep ID + Title only */
-  table thead th:nth-child(3),  /* Status */
-  table thead th:nth-child(4),  /* Priority */
-  table tbody td:nth-child(3),  /* Status */
-  table tbody td:nth-child(4) { /* Priority */
-    display: none;
-  }
-
-  /* Modal: full viewport width, no horizontal margin */
-  dialog article {
-    max-width: 100vw;
-    margin: 0;
-    border-radius: 0;
-  }
-
-  /* Nav: reduce gap between items so everything fits in one row */
-  nav.nav-tabs ul:last-child {
-    gap: 0.25rem;
-  }
-
-  nav.nav-tabs ul:last-child li a {
-    padding: 0.5rem 0;
-    font-size: 0.875rem;
-  }
-
-  /* Toast container: anchor to bottom corners, narrower max-width */
-  #toast-container {
-    left: 0.75rem;
-    right: 0.75rem;
-    bottom: 0.75rem;
-  }
-
-  .toast {
-    max-width: 100%;
-  }
-
-  /* Settings dropdown: keep right-aligned (right:0) so it doesn't clip.
-   * No change needed since it's already `right: 0` — but cap min-width so
-   * it doesn't push off-screen on very narrow viewports. */
-  .settings-menu {
-    min-width: 8rem;
-  }
+  .work-table th:nth-child(4),
+  .work-table td:nth-child(4) { display: none; }
+  .issue-table th:nth-child(3) { width: 6.5rem; }
+  .work-table td .badge { max-width: 100%; }
 }
 
 /* Epic progress: three-part done/in-progress/open color coding */
@@ -1703,8 +1828,8 @@ a.view-toggle-btn:focus-visible {
   line-height: 1.3;
 }
 
-.markdown-body h1 { font-size: 1.75em; }
-.markdown-body h2 { font-size: 1.4em; }
+.markdown-body h1 { font-size: 1.5em; }
+.markdown-body h2 { font-size: 1.25em; }
 .markdown-body h3 { font-size: 1.2em; }
 .markdown-body h4 { font-size: 1.05em; }
 .markdown-body h5 { font-size: 0.95em; }
@@ -1764,6 +1889,8 @@ a.view-toggle-btn:focus-visible {
 .markdown-body li {
   margin-bottom: 0.25em;
 }
+
+.markdown-body li:has(> input[type="checkbox"]) { list-style: none; }
 
 .markdown-body li > ul,
 .markdown-body li > ol {

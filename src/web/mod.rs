@@ -91,12 +91,11 @@ struct StaticAssets;
 async fn static_handler(AxumPath(path): AxumPath<String>) -> Response {
     match StaticAssets::get(&path) {
         Some(content) => {
-            let mime = if path.ends_with(".js") {
-                "application/javascript"
-            } else if path.ends_with(".css") {
-                "text/css"
-            } else {
-                "application/octet-stream"
+            let mime = match path.rsplit_once('.').map(|(_, extension)| extension) {
+                Some("js") => "application/javascript",
+                Some("css") => "text/css",
+                Some("png") => "image/png",
+                _ => "application/octet-stream",
             };
             ([(header::CONTENT_TYPE, mime)], content.data).into_response()
         }

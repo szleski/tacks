@@ -16,6 +16,7 @@ Feature: Markdown rendering in web views
     When I GET the HTML task "heading-task"
     Then the response status is 200
     And the response body contains "<h2>Heading</h2>"
+    And the response body contains 'data-markdown="## Heading"'
 
   Scenario: Task detail page renders inline code in description
     Given I created a task via API with title "Code task" and description "Use `cargo build` to compile." as "code-task"
@@ -29,11 +30,11 @@ Feature: Markdown rendering in web views
     Then the response status is 200
     And the response body contains "markdown-body"
 
-  Scenario: Task detail page shows fallback dash when description is absent
+  Scenario: Task detail page shows an empty state when description is absent
     Given I created a task via API with title "No-desc task" as "nodesc-task"
     When I GET the HTML task "nodesc-task"
     Then the response status is 200
-    And the response body contains "—"
+    And the response body contains "No description"
 
   # ---------------------------------------------------------------------------
   # Task detail modal fragment — HTMX markdown rendering
@@ -44,12 +45,13 @@ Feature: Markdown rendering in web views
     When I HTMX GET the task "modal-md-task"
     Then the response status is 200
     And the response body contains "<h2>Modal Heading</h2>"
+    And the response body contains 'data-markdown="## Modal Heading"'
 
-  Scenario: Task modal fragment shows fallback dash when description is absent
+  Scenario: Task modal fragment shows an empty state when description is absent
     Given I created a task via API with title "Modal no-desc task" as "modal-nodesc-task"
     When I HTMX GET the task "modal-nodesc-task"
     Then the response status is 200
-    And the response body contains "—"
+    And the response body contains "No description"
 
   # ---------------------------------------------------------------------------
   # Epic detail page — description markdown rendering

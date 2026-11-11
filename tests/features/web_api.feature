@@ -23,6 +23,12 @@ Feature: REST API endpoints
     Then the response status is 201
     And the response JSON field "title" equals "Tagged task"
 
+  Scenario: POST /api/tasks stores the status and assignee selected in the web form
+    When I POST "/api/tasks" with body '{"title":"Assigned task","status":"in_progress","assignee":"alice"}'
+    Then the response status is 201
+    And the response JSON field "status" equals "in_progress"
+    And the response JSON field "assignee" equals "alice"
+
   Scenario: POST /api/tasks with missing title returns 422
     When I POST "/api/tasks" with body '{"priority":1}'
     Then the response status is 422
