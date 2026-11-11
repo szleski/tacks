@@ -709,7 +709,8 @@
           openDropdown();
         }
         focusTagOption(getTagOptions().length - 1);
-      } else if (e.key === 'Escape') {
+      } else if (e.key === 'Escape' && !dropdown.hidden) {
+        e.preventDefault();
         closeDropdownAndFocusTrigger();
       } else if (e.key === 'Tab') {
         closeDropdown();
@@ -943,7 +944,8 @@
           openDropdown();
         }
         focusItem(items.length - 1);
-      } else if (e.key === 'Escape') {
+      } else if (e.key === 'Escape' && isOpen()) {
+        e.preventDefault();
         closeDropdownAndFocusTrigger();
       } else if (e.key === 'Tab') {
         // Tab closes dropdown without returning focus so natural tab order proceeds
@@ -1112,7 +1114,8 @@
         e.preventDefault();
         if (!isOpen()) openDropdown();
         focusItem(items.length - 1);
-      } else if (e.key === 'Escape') {
+      } else if (e.key === 'Escape' && isOpen()) {
+        e.preventDefault();
         closeDropdownAndFocusTrigger();
       } else if (e.key === 'Tab') {
         closeDropdown();
@@ -1665,6 +1668,7 @@
   // --- Global keydown handler ---
 
   document.addEventListener('keydown', function (e) {
+    if (e.defaultPrevented) return;
     var key = e.key;
 
     // Always allow Escape to close overlay or blur
@@ -1685,7 +1689,7 @@
       return;
     }
 
-    if (e.defaultPrevented || isTypingTarget(document.activeElement)) return;
+    if (isTypingTarget(document.activeElement)) return;
     if (key === '?') {
       toggleHelp();
       return;

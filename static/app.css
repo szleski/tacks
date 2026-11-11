@@ -495,7 +495,8 @@ body > main.container {
 .work-table th:first-child { width: 7rem; }
 .work-table th:nth-child(3) { width: 8rem; }
 .work-table th:nth-child(4) { width: 5rem; white-space: nowrap; }
-.epic-table th:nth-child(5) { width: 11rem; }
+.epic-table .col-progress { width: 11rem; white-space: nowrap; }
+.epic-id-compact { display: none; }
 .issue-table th:nth-child(5) { width: 20%; }
 .issue-table th:last-child { width: 8.4rem; }
 
@@ -534,6 +535,7 @@ body > main.container {
   gap: 0.5rem;
   font: 0.8rem var(--pico-font-family-monospace);
   color: var(--pico-muted-color);
+  white-space: nowrap;
 }
 
 .progress-track {
@@ -940,7 +942,9 @@ a.view-toggle-btn:hover {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
-  right: 0;
+  width: max-content;
+  min-width: 100%;
+  max-width: min(18rem, calc(100vw - 2rem));
   list-style: none;
   margin: 0;
   padding: 0.25em 0;
@@ -949,7 +953,8 @@ a.view-toggle-btn:hover {
   border-radius: var(--pico-border-radius, 0.25rem);
   box-shadow: 0 4px 12px rgba(0,0,0,0.12);
   z-index: 100;
-  min-width: 100%;
+  max-height: 16rem;
+  overflow-y: auto;
 }
 
 .filter-multiselect-dropdown[hidden] {
@@ -964,6 +969,11 @@ a.view-toggle-btn:hover {
   cursor: pointer;
   font-size: 0.9em;
   color: var(--pico-color, inherit);
+}
+
+.filter-multiselect-dropdown li > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .filter-multiselect-dropdown li:hover {
@@ -1762,9 +1772,9 @@ a.view-toggle-btn:focus-visible {
   .filter-bar .issue-search { flex-basis: 100%; max-width: none; }
   .work-table :is(th, td) { padding: 0.45rem 0.35rem; }
   .work-table th:first-child { width: 4.65rem; }
-  .work-table th:nth-child(3) { width: 6rem; }
-  .work-table th:nth-child(4) { width: 3.5rem; }
-  .epic-table th:nth-child(5) { width: 4.2rem; }
+  .work-table th:nth-child(3) { width: 6.75rem; }
+  .work-table th:nth-child(4) { width: 3.8rem; }
+  .epic-table .col-progress { width: 5rem; }
   .issue-id { font-size: 0.7rem; }
   .epic-badge { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
   .issue-table .epic-badge { white-space: nowrap; }
@@ -1776,8 +1786,11 @@ a.view-toggle-btn:focus-visible {
 @media (max-width: 480px) {
   .work-table th:nth-child(4),
   .work-table td:nth-child(4) { display: none; }
-  .issue-table th:nth-child(3) { width: 6.5rem; }
-  .work-table td .badge { max-width: 100%; }
+}
+
+@media (max-width: 400px) {
+  .epic-table .epic-id-column { display: none; }
+  .epic-id-compact { display: block; margin-top: 0.2rem; }
 }
 
 /* Epic progress: three-part done/in-progress/open color coding */

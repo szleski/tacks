@@ -49,11 +49,11 @@
 <table class="work-table epic-table">
   <thead>
     <tr>
-      <th>ID</th>
+      <th class="epic-id-column">ID</th>
       <th>Title</th>
       <th>Status</th>
       <th>Priority</th>
-      <th>Progress</th>
+      <th class="col-progress">Progress</th>
     </tr>
   </thead>
   <tbody id="epic-rows" data-live hx-get="/epics{{ poll_query }}"
@@ -67,8 +67,11 @@
     {% else %}
     {% for ep in epics %}
     <tr>
-      <td class="issue-id"><a href="/epics/{{ ep.task.id }}">{{ ep.task.id }}</a></td>
-      <td><a class="epic-title" href="/epics/{{ ep.task.id }}">{{ ep.task.title }}</a></td>
+      <td class="epic-id-column issue-id"><a href="/epics/{{ ep.task.id }}">{{ ep.task.id }}</a></td>
+      <td>
+        <a class="epic-title" href="/epics/{{ ep.task.id }}">{{ ep.task.title }}</a>
+        <span class="epic-id-compact issue-id">{{ ep.task.id }}</span>
+      </td>
       <td><span class="badge status-{{ ep.task.status }}">
         {%- if ep.task.status == crate::models::Status::Open -%}○ Open
         {%- else if ep.task.status == crate::models::Status::InProgress -%}◐ In Progress
