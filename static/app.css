@@ -2183,15 +2183,6 @@ a.view-toggle-btn:focus-visible {
 .graph-edge-dependent { stroke: var(--graph-dependent); stroke-width: 3; stroke-dasharray: 8 4; }
 .graph-node.graph-blocker > rect { stroke: var(--graph-blocker); stroke-width: 3; }
 .graph-node.graph-dependent > rect { stroke: var(--graph-dependent); stroke-width: 3; stroke-dasharray: 8 4; }
-.graph-selection { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; font-size: .78rem; margin: 0 0 .6rem; min-height: 30px; }
-.graph-selection[hidden] { display: none; }
-.graph-selection-link { font-weight: 600; text-decoration: none; }
-.graph-relation-blocker, .graph-relation-dependent { display: inline-flex; align-items: center; gap: .4rem; color: var(--graph-blocker); }
-.graph-relation-dependent { color: var(--graph-dependent); }
-.graph-relation-blocker::before, .graph-relation-dependent::before { content: ''; width: 18px; border-top: 2px solid currentColor; }
-.graph-relation-dependent::before { border-top-style: dashed; }
-.graph-selection-clear { border: 0; padding: 0 .3rem; margin: 0; width: auto; background: transparent; box-shadow: none; color: var(--pico-muted-color); font-size: 1rem; line-height: 1.5; }
-.graph-selection :is(a,button):focus-visible { outline: 2px solid var(--pico-primary); outline-offset: 2px; }
 .graph-node { cursor: pointer; outline: none; text-decoration: none; color: var(--status-color, var(--status-open)); }
 .graph-node > rect { fill: var(--pico-card-background-color); stroke: var(--pico-muted-color); stroke-width: 1.2; }
 .graph-node:focus > rect, .graph-node:hover > rect, .graph-node.graph-selected > rect, .graph-node.graph-match > rect { stroke: var(--pico-primary); stroke-width: 3; }

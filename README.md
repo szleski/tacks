@@ -96,8 +96,8 @@ Search highlights issues without hiding the rest. Hover or focus a node to previ
 blockers and dependents. Click or press Enter to pin a selection and close the
 preview. Its direct blockers have solid outlines; direct dependants have dashed
 outlines, with matching arrows. Hover previews pause while selected. Open the
-issue using its title link above the graph (or Command/Control-click its node).
-Clear selection with Escape, the × button, or a click on the graph background.
+issue from its hover preview or by Command/Control-clicking its node.
+Clear selection with Escape or a click on the graph background.
 Selection stays highlighted while panning, zooming, searching, or refreshing.
 Status shapes and written labels distinguish open, in-progress, blocked, and done
 work independently of colour. The same colours, symbols, labels, and status order

@@ -6,7 +6,6 @@
     if (!root || root.dataset.initialized) return;
     root.dataset.initialized = 'true';
     const svg = root.querySelector('#graph-svg'), summary = root.querySelector('#graph-summary');
-    const selection = root.querySelector('#graph-selection');
     const inspector = root.querySelector('#graph-inspector'), search = root.querySelector('#graph-search');
     let graph, selected, hovered, box, drag, previewTimer, hideTimer, moved = false;
     function el(tag, attrs, text) {
@@ -57,24 +56,8 @@
       inspector.hidden = true; hovered = undefined;
       if (graph) highlight();
     }
-    function showSelection() {
-      selection.replaceChildren(); selection.hidden = !selected;
-      if (!selected) return;
-      const n = graph.nodes.find(n => n.id === selected);
-      const link = document.createElement('a'); link.href = '/tasks/' + encodeURIComponent(n.id);
-      link.textContent = `${n.id}: ${n.title} ↗`; link.className = 'graph-selection-link'; selection.append(link);
-      for (const [label, relation, count] of [
-        ['blockers', 'blocker', graph.edges.filter(e => e.child_id === selected).length],
-        ['dependants', 'dependent', graph.edges.filter(e => e.parent_id === selected).length],
-      ]) {
-        const span = document.createElement('span'); span.className = 'graph-relation-' + relation;
-        span.textContent = `${count} ${label}`; selection.append(span);
-      }
-      const clear = document.createElement('button'); clear.type = 'button'; clear.className = 'graph-selection-clear';
-      clear.textContent = '×'; clear.setAttribute('aria-label', 'Clear graph selection'); clear.onclick = clearSelection; selection.append(clear);
-    }
-    function clearSelection() { selected = undefined; dismiss(); showSelection(); }
-    function select(id) { selected = id; dismiss(); showSelection(); }
+    function clearSelection() { selected = undefined; dismiss(); }
+    function select(id) { selected = id; dismiss(); }
     function scheduleHide() {
       if (inspector.contains(document.activeElement) || document.activeElement.matches('.graph-node')) return;
       clearTimeout(previewTimer); clearTimeout(hideTimer);
@@ -193,7 +176,7 @@
         graph = window.layoutTacksGraph(data.tasks, data.dependencies); draw();
         if (selected && !graph.nodes.some(n => n.id === selected)) selected = undefined;
         if (initial) fit();
-        dismiss(); showSelection();
+        dismiss();
         if (!graph.nodes.length) summary.textContent = 'No issues yet. Create an issue to start your graph.';
       } catch (e) { summary.textContent = `Could not load graph: ${e.message}. Use Refresh to retry.`; }
       finally { button.disabled = false; }
