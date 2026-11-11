@@ -4,30 +4,21 @@ Lightweight task manager for AI coding agents. Local-only, single-binary, SQLite
 
 ## Install
 
-### Pre-built binaries (recommended)
+Install [stable Rust with Cargo](https://rust-lang.org/tools/install/) and a C compiler for the bundled SQLite build. Then install `tk` from this fork's `serve-ui-refresh` branch, which includes the refreshed web UI and Markdown editing fix.
 
 ```bash
-# macOS / Linux
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/srmccray/tacks/releases/latest/download/tacks-installer.sh | sh
-
-# Windows
-powershell -ExecutionPolicy ByPass -c "irm https://github.com/srmccray/tacks/releases/latest/download/tacks-installer.ps1 | iex"
+cargo install --locked --git https://github.com/szleski/tacks.git --branch serve-ui-refresh
+tk --version
 ```
 
-Or download binaries directly from [GitHub Releases](https://github.com/srmccray/tacks/releases).
+The same command works on macOS, Linux, and Windows with the build tools installed. Add `--force` to the install command if you're replacing an existing `tk` binary. Cargo normally installs it in `~/.cargo/bin` (on Windows, `%USERPROFILE%\.cargo\bin`).
 
-### From crates.io
-
-```bash
-cargo install tacks
-```
-
-### From source
+### From a local checkout
 
 ```bash
-git clone https://github.com/srmccray/tacks.git
+git clone --branch serve-ui-refresh https://github.com/szleski/tacks.git
 cd tacks
-cargo install --path .
+cargo install --locked --path .
 ```
 
 ## Quick start
@@ -107,21 +98,21 @@ Tacks ships a Claude Code plugin that wires `tk` commands into slash commands an
 ### Install from marketplace
 
 ```bash
-/plugin marketplace add srmccray/tacks
+/plugin marketplace add szleski/tacks#serve-ui-refresh
 /plugin install tacks@tacks-marketplace
 ```
 
 ### Manual install from local clone
 
 ```bash
-git clone https://github.com/srmccray/tacks.git
+git clone --branch serve-ui-refresh https://github.com/szleski/tacks.git
 cd tacks
 
 # Option 1: Session-scoped (for testing)
 claude --plugin-dir ./claude-plugin
 
 # Option 2: Persistent install
-/plugin marketplace add ./claude-plugin
+/plugin marketplace add ./
 /plugin install tacks@tacks-marketplace
 ```
 
