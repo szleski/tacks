@@ -117,6 +117,8 @@ pub fn create_router(state: AppState) -> Router {
             get(handlers::task_list).post(handlers::task_create_form),
         )
         .route("/board", get(handlers::board))
+        .route("/graph", get(handlers::graph))
+        .route("/api/graph", get(handlers::api_graph))
         .route("/epics", get(handlers::epics))
         .route("/epics/{id}", get(handlers::epic_detail))
         .route("/epics/{id}/dep-tree", get(handlers::epic_dep_tree))

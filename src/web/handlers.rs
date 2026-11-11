@@ -2103,3 +2103,32 @@ pub async fn api_stats(State(state): State<AppState>) -> Result<impl IntoRespons
 
     Ok(Json(result))
 }
+
+// The graph deliberately has no list/board filters: every issue is represented.
+#[derive(Template)]
+#[template(path = "graph.html")]
+struct GraphTemplate;
+
+pub async fn graph() -> Response {
+    render_template(GraphTemplate)
+}
+
+#[derive(Serialize)]
+pub struct GraphResponse {
+    pub tasks: Vec<Task>,
+    pub dependencies: Vec<crate::models::Dependency>,
+}
+
+pub async fn api_graph(State(state): State<AppState>) -> Result<Json<GraphResponse>, AppError> {
+    let result = tokio::task::spawn_blocking(move || {
+        let db = state.db.lock().unwrap();
+        Ok::<_, String>(GraphResponse {
+            tasks: db.list_tasks(true, None, None, None, None, None, None)?,
+            dependencies: db.list_dependencies()?,
+        })
+    })
+    .await
+    .map_err(|e| AppError::Internal(e.to_string()))?
+    .map_err(AppError::Internal)?;
+    Ok(Json(result))
+}

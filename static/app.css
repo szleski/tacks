@@ -2250,3 +2250,32 @@ a.view-toggle-btn:focus-visible {
   outline: 2px solid var(--pico-primary-focus, rgba(124, 58, 237, 0.375));
   border-radius: 2px;
 }
+
+/* Whole-workspace dependency graph */
+.graph-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.graph-toolbar input { flex: 1 1 260px; margin: 0; }
+.graph-toolbar button { width: auto; margin: 0; padding: .5rem .8rem; }
+.graph-stage { border: 1px solid var(--pico-muted-border-color); border-radius: 10px; overflow: hidden; }
+#graph-svg { display: block; width: 100%; height: 640px; touch-action: none; cursor: grab; background: var(--pico-card-background-color); }
+#graph-svg:active { cursor: grabbing; }
+.graph-lane { fill: var(--pico-background-color); stroke: var(--pico-muted-border-color); }
+.graph-lane-title { fill: var(--pico-muted-color); font: 600 13px system-ui, sans-serif; }
+.graph-edge { fill: none; stroke: #8b96ac; stroke-width: 1.7; }
+.graph-membership { fill: none; stroke: var(--pico-muted-color); stroke-width: 1; stroke-dasharray: 4 5; opacity: .4; }
+.graph-edge-selected { stroke: #6cbaff; stroke-width: 3; }
+.graph-node { cursor: pointer; outline: none; }
+.graph-node rect { fill: var(--pico-card-background-color); stroke: var(--pico-muted-color); stroke-width: 1; }
+.graph-node circle { fill: #9aa7bc; }
+.graph-node.graph-status-in_progress circle { fill: #6cbaff; }
+.graph-node.graph-status-blocked circle { fill: #eeb65d; }
+.graph-node.graph-status-done circle { fill: #71c69a; }
+.graph-node.graph-status-done rect { stroke: #71c69a; }
+.graph-node.graph-status-blocked rect { stroke: #eeb65d; }
+.graph-node:focus rect, .graph-node:hover rect, .graph-node.graph-selected rect, .graph-node.graph-match rect { stroke: #6cbaff; stroke-width: 3; }
+.graph-title { fill: var(--pico-color); font: 500 13px system-ui, sans-serif; }
+.graph-meta { fill: var(--pico-muted-color); font: 10px ui-monospace, monospace; }
+.graph-legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: .8rem; margin-bottom: .6rem; }
+.graph-progress { color: #6cbaff; } .graph-blocked { color: #bf8529; } .graph-done { color: #4b9f73; }
+#graph-inspector { padding: 1rem 0; font-size: .9rem; }
+#graph-inspector p { margin: .4rem 0; }
+@media (max-width: 600px) { #graph-svg { height: 500px; } }

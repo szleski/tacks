@@ -80,6 +80,7 @@
       'nav-issues': '/tasks',
       'nav-board': '/board',
       'nav-epics': '/epics',
+      'nav-graph': '/graph',
     };
     Object.keys(navMap).forEach(function (id) {
       var el = document.getElementById(id);

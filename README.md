@@ -80,6 +80,33 @@ Sortable table with inline editing — click any field to edit in place.
 
 ![Task list](docs/images/list.png)
 
+### Dependency graph
+
+Open **Graph** in the navigation bar, or visit `/graph`. It shows every issue,
+including epics, completed work, and issues with no dependency edges. Epic lanes
+keep related work together; solid arrows point from blocker to dependent and
+dashed lines show parent membership. Cross-epic dependencies appear in the same
+view. Drag to pan, scroll or use the buttons to zoom, and use **Fit all** to reset.
+Search highlights issues without hiding the rest. Select a node to inspect its
+blockers and dependents or open the issue. Use **Refresh** after CLI changes.
+The unfiltered snapshot is also available at `GET /api/graph`.
+
+Try an isolated sample with five epics, 25 child tasks, and 27 dependencies
+(including seven across epics, diamonds, completed prerequisites, and isolated
+issues):
+
+```bash
+cargo build
+python3 scripts/seed-graph-demo.py --tk target/debug/tk
+target/debug/tk --db .tacks/graph-demo.db serve --port 3001
+# Open http://localhost:3001/graph
+```
+
+The seed script refuses to overwrite an existing database. Use `--db <new-path>`
+for another sample; your project's normal backlog stays in `.tacks/tacks.db`.
+Graph layout tests run with `node --test tests/graph-layout.test.cjs`; API tests
+are included in `cargo test`.
+
 ### Features
 
 - **Kanban board** with drag-and-drop between status columns

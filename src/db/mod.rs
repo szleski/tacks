@@ -509,6 +509,23 @@ impl Database {
         Ok(())
     }
 
+    /// All edges, including those whose blockers are already completed.
+    pub fn list_dependencies(&self) -> Result<Vec<Dependency>, String> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT child_id, parent_id FROM dependencies ORDER BY parent_id, child_id")
+            .map_err(|e| format!("query error: {e}"))?;
+        stmt.query_map([], |row| {
+            Ok(Dependency {
+                child_id: row.get(0)?,
+                parent_id: row.get(1)?,
+            })
+        })
+        .map_err(|e| format!("query error: {e}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("row error: {e}"))
+    }
+
     pub fn get_blockers(&self, task_id: &str) -> Result<Vec<Dependency>, String> {
         let mut stmt = self
             .conn

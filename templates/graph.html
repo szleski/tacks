@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Graph — Tacks{% endblock %}
+{% block content %}
+<section id="dependency-graph" aria-labelledby="graph-heading">
+    <h1 id="graph-heading">Dependency graph</h1>
+    <p>Every issue, across every epic. Arrows run from blocker to dependent. Dashed lines show parent membership.</p>
+    <div class="graph-toolbar" role="group" aria-label="Graph controls">
+        <input type="search" id="graph-search" placeholder="Find an issue by title or ID" aria-label="Find an issue by title or ID">
+        <button type="button" id="graph-fit" class="secondary">Fit all</button>
+        <button type="button" id="graph-in" class="secondary" aria-label="Zoom in">+</button>
+        <button type="button" id="graph-out" class="secondary" aria-label="Zoom out">−</button>
+        <button type="button" id="graph-refresh" class="secondary">Refresh</button>
+    </div>
+    <p id="graph-summary" role="status" aria-live="polite">Loading issues…</p>
+    <div class="graph-legend"><span>● Open</span><span class="graph-progress">● In progress</span><span class="graph-blocked">● Blocked by unfinished work</span><span class="graph-done">● Done</span></div>
+    <div class="graph-stage">
+        <svg id="graph-svg" role="group" aria-label="All issues and dependencies. Drag to pan, scroll to zoom. Tab to an issue and press Enter to inspect." tabindex="0"></svg>
+    </div>
+    <aside id="graph-inspector" aria-label="Selected issue" aria-live="polite">Select an issue to see its blockers and dependents. Drag to pan; scroll to zoom. Search highlights matches without hiding issues.</aside>
+    <noscript>Enable JavaScript to display the dependency graph.</noscript>
+</section>
+{% endblock %}
