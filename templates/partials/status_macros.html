@@ -1,0 +1,2 @@
+{% macro icon(status) %}<svg class="status-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><use href="#status-{{ status }}-icon"></use></svg>{% endmacro %}
+{% macro badge(status) %}<span class="badge status-{{ status }}">{% call icon(status) %} {{ status.label() }}</span>{% endmacro %}

@@ -859,6 +859,12 @@
           toggleValue(value);
         });
 
+        if (badgeClass.indexOf('status-') === 0 && window.TacksStatus[value]) {
+          var icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          icon.setAttribute('class', 'status-icon'); icon.setAttribute('viewBox', '0 0 16 16'); icon.setAttribute('aria-hidden', 'true');
+          var use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+          use.setAttribute('href', window.TacksStatus[value].symbol); icon.appendChild(use); pill.appendChild(icon);
+        }
         pill.appendChild(text);
         pill.appendChild(removeBtn);
         pillsEl.appendChild(pill);
@@ -1236,11 +1242,9 @@
 
   // Build a status badge HTML string for re-rendering after save
   function statusBadgeHtml(status) {
-    var icons = { open: '○', in_progress: '◐', done: '✓', blocked: '⊘' };
-    var labels = { open: 'Open', in_progress: 'In Progress', done: 'Done', blocked: 'Blocked' };
-    var icon = icons[status] || '';
-    var label = labels[status] || status.replace('_', ' ');
-    return '<span class="badge status-' + status + '">' + icon + ' ' + label + '</span>';
+    var item = window.TacksStatus[status];
+    if (!item) return '';
+    return '<span class="badge status-' + status + '"><svg class="status-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><use href="' + item.symbol + '"></use></svg> ' + item.label + '</span>';
   }
 
   // Build a priority badge HTML string for re-rendering after save
@@ -1382,11 +1386,11 @@
     if (field === 'status') {
       input = document.createElement('select');
       input.className = 'inline-edit-select';
-      var statusLabels = { open: '○ Open', in_progress: '◐ In Progress', done: '✓ Done', blocked: '⊘ Blocked' };
-      ['open', 'in_progress', 'done', 'blocked'].forEach(function (opt) {
+      var statusLabels = window.TacksStatus;
+      ['open', 'in_progress', 'blocked', 'done'].forEach(function (opt) {
         var o = document.createElement('option');
         o.value = opt;
-        o.textContent = statusLabels[opt] || opt.replace('_', ' ');
+        o.textContent = statusLabels[opt].label || opt.replace('_', ' ');
         // Strip leading icon character (non-ASCII) then spaces before matching
         var normalised = currentText.replace(/^[^\w]+/, '').trim().replace(/\s+/g, '_').toLowerCase();
         if (normalised === opt) {

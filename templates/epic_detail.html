@@ -1,3 +1,4 @@
+{% import "partials/status_macros.html" as status_ui %}
 {% extends "base.html" %}
 
 {% block title %}{{ task.title }} — Epic — Tacks{% endblock %}
@@ -31,12 +32,7 @@
   <span class="meta-item"><span class="meta-label">ID</span> {{ task.id }}</span>
   <span class="meta-sep">·</span>
   <span class="meta-item">
-    <span class="badge status-{{ task.status }}">
-      {%- if task.status == crate::models::Status::Open -%}○ Open
-      {%- else if task.status == crate::models::Status::InProgress -%}◐ In Progress
-      {%- else if task.status == crate::models::Status::Done -%}✓ Done
-      {%- else -%}⊘ Blocked{%- endif -%}
-    </span>
+    {% call status_ui::badge(task.status) %}
   </span>
   <span class="meta-sep">·</span>
   <span class="meta-item"><span class="badge priority-{{ task.priority }}">
@@ -118,12 +114,7 @@
       <td><a href="/tasks/{{ child.id }}" hx-select="unset">{{ child.id }}</a></td>
       <td>{{ child.title }}</td>
       <td>
-        <span class="badge status-{{ child.status }}">
-          {%- if child.status == crate::models::Status::Open -%}○ Open
-          {%- else if child.status == crate::models::Status::InProgress -%}◐ In Progress
-          {%- else if child.status == crate::models::Status::Done -%}✓ Done
-          {%- else -%}⊘ Blocked{%- endif -%}
-        </span>
+        {% call status_ui::badge(child.status) %}
       </td>
       <td><span class="badge priority-{{ child.priority }}">
         {%- if child.priority == 0 -%}▲ P0{%- else if child.priority == 1 -%}▲ P1{%- else if child.priority == 2 -%}▬ P2{%- else if child.priority == 3 -%}▽ P3{%- else -%}· P4{%- endif -%}
@@ -141,7 +132,7 @@
 {% else %}
 <div class="board-grid">
   <div class="board-column" data-status="open">
-    <h3>Open <span class="column-count">{{ board_open_count }}</span></h3>
+    <h3>{% call status_ui::icon("open") %} Open <span class="column-count">{{ board_open_count }}</span></h3>
     <div class="column-cards">
     {% for child in &children %}
     {%- if child.status == crate::models::Status::Open -%}
@@ -162,7 +153,7 @@
     </div>
   </div>
   <div class="board-column" data-status="in_progress">
-    <h3>In Progress <span class="column-count">{{ board_in_progress_count }}</span></h3>
+    <h3>{% call status_ui::icon("in_progress") %} In Progress <span class="column-count">{{ board_in_progress_count }}</span></h3>
     <div class="column-cards">
     {% for child in &children %}
     {%- if child.status == crate::models::Status::InProgress -%}
@@ -183,7 +174,7 @@
     </div>
   </div>
   <div class="board-column" data-status="blocked">
-    <h3>Blocked <span class="column-count">{{ board_blocked_count }}</span></h3>
+    <h3>{% call status_ui::icon("blocked") %} Blocked <span class="column-count">{{ board_blocked_count }}</span></h3>
     <div class="column-cards">
     {% for child in &children %}
     {%- if child.status == crate::models::Status::Blocked -%}
@@ -205,7 +196,7 @@
   </div>
   <div class="board-column" data-status="done">
     <h3>
-      <button class="column-collapse-toggle" data-column="done" data-storage-key="epic-board-done-collapsed-{{ task.id }}" aria-label="Toggle done column">&#9660;</button>
+      {% call status_ui::icon("done") %}<button class="column-collapse-toggle" data-column="done" data-storage-key="epic-board-done-collapsed-{{ task.id }}" aria-label="Toggle done column">&#9660;</button>
       Done <span class="column-count">{{ board_done_count }}</span>
     </h3>
     <div class="column-cards">

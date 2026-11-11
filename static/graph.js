@@ -27,8 +27,6 @@
       return new DOMPoint(event.clientX, event.clientY).matrixTransform(svg.getScreenCTM().inverse());
     }
     function state(n) {
-      if (n.status === 'done') return 'done';
-      if (n.status === 'blocked' || graph.edges.some(e => e.child_id === n.id && graph.nodes.find(t => t.id === e.parent_id).status !== 'done')) return 'blocked';
       return n.status;
     }
     function highlight() {
@@ -69,7 +67,7 @@
       inspector.replaceChildren();
       const close = document.createElement('button'); close.type = 'button'; close.className = 'graph-preview-close'; close.setAttribute('aria-label', 'Close issue preview'); close.textContent = '×'; close.onclick = dismiss; inspector.append(close);
       const title = document.createElement('a'); title.className = 'graph-preview-title'; title.href = '/tasks/' + encodeURIComponent(id); title.textContent = n.title; inspector.append(title);
-      const meta = document.createElement('p'); meta.className = 'graph-preview-meta'; meta.textContent = `${n.id} · P${n.priority} · ${state(n).replace('_', ' ')}${state(n) === 'blocked' && n.status !== 'blocked' ? ' (waiting on prerequisites)' : ''}`; inspector.append(meta);
+      const meta = document.createElement('p'); meta.className = 'graph-preview-meta'; meta.textContent = `${n.id} · P${n.priority} · ${window.TacksStatus[state(n)].label}`; inspector.append(meta);
       function links(label, ids) {
         const p = document.createElement('p'); p.append(`${label}: `);
         if (!ids.length) p.append('None');
@@ -79,6 +77,11 @@
           link.textContent = graph.nodes.find(t => t.id === id).title; p.append(link);
         });
         inspector.append(p);
+      }
+      const unfinished = graph.edges.filter(e => e.child_id === id && graph.nodes.find(t => t.id === e.parent_id).status !== 'done').length;
+      if (unfinished) {
+        const warning = document.createElement('p'); warning.className = 'graph-preview-waiting';
+        warning.textContent = `Waiting on ${unfinished} unfinished prerequisite${unfinished === 1 ? '' : 's'}`; inspector.append(warning);
       }
       links('Blockers', graph.edges.filter(e => e.child_id === id).map(e => e.parent_id));
       links('Dependents', graph.edges.filter(e => e.parent_id === id).map(e => e.child_id));
@@ -122,25 +125,12 @@
       graph.nodes.forEach(n => { if (n.parent_id) edge(n.parent_id, n.id, true); });
       graph.edges.forEach(e => edge(e.parent_id, e.child_id, false));
       graph.nodes.forEach(n => {
-        const g = el('a', {href: '/tasks/' + encodeURIComponent(n.id), class: `graph-node graph-status-${state(n)}`, transform: `translate(${n.x},${n.y})`, tabindex: 0, role: 'link', 'aria-label': `${n.id}: ${n.title}; ${state(n).replace('_', ' ')}`});
+        const g = el('a', {href: '/tasks/' + encodeURIComponent(n.id), class: `graph-node graph-status-${state(n)}`, transform: `translate(${n.x},${n.y})`, tabindex: 0, role: 'link', 'aria-label': `${n.id}: ${n.title}; ${window.TacksStatus[state(n)].label}`});
         g.dataset.id = n.id;
         g.append(el('rect', {width: 240, height: 74, rx: 8}));
-        // Shape and text encode status even without colour perception.
-        const glyph = el('g', {class: 'graph-status-icon', transform: 'translate(8,10)', 'aria-hidden': 'true'});
-        const outline = {fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6};
-        const status = state(n);
-        if (status === 'blocked') {
-          glyph.append(el('path', {...outline, d: 'M7 0 14 7 7 14 0 7Z'}));
-          glyph.append(el('path', {...outline, d: 'M7 3v5m0 2v1'}));
-        } else if (status === 'done') {
-          glyph.append(el('rect', {...outline, x: 1, y: 1, width: 12, height: 12, rx: 2}));
-          glyph.append(el('path', {...outline, d: 'm3 7 3 3 5-6'}));
-        } else {
-          glyph.append(el('circle', {...outline, cx: 7, cy: 7, r: 5}));
-          if (status === 'in_progress') glyph.append(el('path', {d: 'M7 2a5 5 0 0 1 0 10z', fill: 'currentColor'}));
-        }
+        const glyph = el('use', {href: window.TacksStatus[n.status].symbol, class: 'graph-status-icon', x: 7, y: 9, width: 16, height: 16, 'aria-hidden': 'true'});
         g.append(glyph);
-        g.append(el('text', {x: 26, y: 22, class: 'graph-meta'}, `${n.id} · P${n.priority} · ${state(n).replace('_', ' ')}`));
+        g.append(el('text', {x: 26, y: 22, class: 'graph-meta'}, `${n.id} · P${n.priority} · ${window.TacksStatus[state(n)].label}`));
         // Split titles into two lines; the full text is available on hover and selection.
         const words = n.title.split(/\s+/), lines = [''];
         words.forEach(w => { if ((lines[lines.length - 1] + w).length > 29 && lines.length < 2) lines.push(''); lines[lines.length - 1] += (lines[lines.length - 1] ? ' ' : '') + w; });

@@ -39,49 +39,20 @@
   white-space: nowrap;
 }
 
-/* Status badges — light theme */
-/* Backgrounds raised to 20% for better visible contrast against page bg */
-.badge.status-open {
-  background-color: color-mix(in srgb, #3b82f6 20%, transparent);
-  color: #1d4ed8;
+/* Status tokens and symbols are shared by every view, including the graph. */
+:root { --status-open: #536278; --status-in_progress: #1761ad; --status-blocked: #895100; --status-done: #6d43aa; }
+[data-theme="dark"] { --status-open: #c2cfda; --status-in_progress: #8dcaff; --status-blocked: #ffd080; --status-done: #d1b5ff; }
+.status-open, .graph-status-open, .board-column[data-status="open"] { --status-color: var(--status-open); }
+.status-in_progress, .graph-status-in_progress, .board-column[data-status="in_progress"] { --status-color: var(--status-in_progress); }
+.status-blocked, .graph-status-blocked, .board-column[data-status="blocked"], .dep-blocked { --status-color: var(--status-blocked); }
+.status-done, .graph-status-done, .board-column[data-status="done"] { --status-color: var(--status-done); }
+.badge:is(.status-open, .status-in_progress, .status-blocked, .status-done), .badge.dep-blocked {
+  color: var(--status-color);
+  background: color-mix(in srgb, var(--status-color) 14%, transparent);
 }
-
-.badge.status-in_progress {
-  background-color: color-mix(in srgb, #f59e0b 20%, transparent);
-  color: #92400e;
-}
-
-.badge.status-done {
-  background-color: color-mix(in srgb, #22c55e 20%, transparent);
-  color: #166534;
-}
-
-.badge.status-blocked {
-  background-color: color-mix(in srgb, #ef4444 20%, transparent);
-  color: #991b1b;
-}
-
-/* Status badges — dark theme overrides */
-/* 30% backgrounds, lighter text for ≥4.5:1 on dark page backgrounds */
-[data-theme="dark"] .badge.status-open {
-  background-color: color-mix(in srgb, #3b82f6 30%, transparent);
-  color: #93c5fd;
-}
-
-[data-theme="dark"] .badge.status-in_progress {
-  background-color: color-mix(in srgb, #f59e0b 30%, transparent);
-  color: #fde68a;
-}
-
-[data-theme="dark"] .badge.status-done {
-  background-color: color-mix(in srgb, #22c55e 30%, transparent);
-  color: #86efac;
-}
-
-[data-theme="dark"] .badge.status-blocked {
-  background-color: color-mix(in srgb, #ef4444 30%, transparent);
-  color: #fca5a5;
-}
+.status-symbols { position: absolute; overflow: hidden; pointer-events: none; }
+.status-icon { display: inline-block; width: 1em; height: 1em; flex-shrink: 0; vertical-align: -.12em; color: var(--status-color, currentColor); }
+.badge .status-icon { margin-right: .15em; }
 
 /* Tag pills */
 /* Explicit fallback colors chosen for ≥4.5:1 contrast on white/dark backgrounds */
@@ -555,8 +526,8 @@ body > main.container {
   background: var(--pico-muted-border-color);
 }
 
-.progress-track .progress-done { background: #52ae86; }
-.progress-track .progress-wip { background: #db9e42; }
+.progress-track .progress-done { background: var(--status-done); }
+.progress-track .progress-wip { background: var(--status-in_progress); }
 .work-table .col-updated { white-space: nowrap; }
 
 .work-table td.empty-state {
@@ -718,16 +689,9 @@ body > main.container {
 
 /* Dependency-blocked badge — shown inline with task title when task has open blockers */
 .badge.dep-blocked {
-  background-color: color-mix(in srgb, #ef4444 20%, transparent);
-  color: #991b1b;
   font-size: 0.72em;
   vertical-align: middle;
   cursor: default;
-}
-
-[data-theme="dark"] .badge.dep-blocked {
-  background-color: color-mix(in srgb, #ef4444 30%, transparent);
-  color: #fca5a5;
 }
 
 /* Container for the dep-blocked badge on board cards */
@@ -1394,12 +1358,7 @@ article.issue-detail {
   padding: 0.55rem;
   background: var(--surface);
   border: 1px solid var(--pico-muted-border-color);
-  --status-color: #7b879f;
 }
-
-.board-column[data-status="in_progress"] { --status-color: #db9e42; }
-.board-column[data-status="blocked"] { --status-color: #e16b76; }
-.board-column[data-status="done"] { --status-color: #52ae86; }
 
 .board-column :is(h2, h3) {
   display: flex;
@@ -1409,14 +1368,6 @@ article.issue-detail {
   padding: 0.2rem 0.2rem 0.6rem;
   font-size: 0.9rem;
   font-weight: 650;
-}
-
-.board-column :is(h2, h3)::before {
-  content: "";
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 50%;
-  background: var(--status-color);
 }
 
 .column-count {
@@ -2041,49 +1992,6 @@ a.view-toggle-btn:focus-visible {
   flex-shrink: 0;
 }
 
-/* Status indicator dot */
-.dep-status-dot {
-  display: inline-block;
-  width: 0.6em;
-  height: 0.6em;
-  border-radius: 50%;
-  flex-shrink: 0;
-  flex-shrink: 0;
-}
-
-.dep-status-dot.dep-status-open {
-  background-color: #3b82f6;
-}
-
-.dep-status-dot.dep-status-in_progress {
-  background-color: #f59e0b;
-}
-
-.dep-status-dot.dep-status-done {
-  background-color: #22c55e;
-}
-
-.dep-status-dot.dep-status-blocked {
-  background-color: #ef4444;
-}
-
-/* Dark theme status dot overrides */
-[data-theme="dark"] .dep-status-dot.dep-status-open {
-  background-color: #93c5fd;
-}
-
-[data-theme="dark"] .dep-status-dot.dep-status-in_progress {
-  background-color: #fde68a;
-}
-
-[data-theme="dark"] .dep-status-dot.dep-status-done {
-  background-color: #86efac;
-}
-
-[data-theme="dark"] .dep-status-dot.dep-status-blocked {
-  background-color: #fca5a5;
-}
-
 /* Link styling within the tree */
 .dep-tree-link {
   font-weight: 500;
@@ -2252,8 +2160,7 @@ a.view-toggle-btn:focus-visible {
 }
 
 /* Whole-workspace dependency graph */
-#dependency-graph { --graph-text: var(--pico-color); --graph-open: #536278; --graph-progress: #1761ad; --graph-blocked: #895100; --graph-done: #6d43aa; }
-[data-theme="dark"] #dependency-graph { --graph-text: var(--pico-color); --graph-open: #c2cfda; --graph-progress: #8dcaff; --graph-blocked: #ffd080; --graph-done: #d1b5ff; }
+#dependency-graph { --graph-text: var(--pico-color); }
 .graph-description, .graph-hint { color: var(--pico-muted-color); font-size: .85rem; }
 .graph-toolbar { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; margin-bottom: .9rem; }
 #graph-search { background-image: none; flex: 0 1 320px; height: 34px; margin: 0; font-size: .8rem; padding: .35rem .7rem; border-radius: 6px; }
@@ -2272,18 +2179,16 @@ a.view-toggle-btn:focus-visible {
 .graph-edge { fill: none; stroke: var(--pico-muted-color); stroke-width: 1.7; }
 .graph-membership { fill: none; stroke: var(--pico-muted-color); stroke-width: 1; stroke-dasharray: 4 5; opacity: .65; }
 .graph-edge-selected { stroke: var(--pico-primary); stroke-width: 3; }
-.graph-node { cursor: pointer; outline: none; text-decoration: none; color: var(--graph-open); }
+.graph-node { cursor: pointer; outline: none; text-decoration: none; color: var(--status-color, var(--status-open)); }
 .graph-node > rect { fill: var(--pico-card-background-color); stroke: var(--pico-muted-color); stroke-width: 1.2; }
-.graph-status-in_progress { color: var(--graph-progress); }
-.graph-status-blocked { color: var(--graph-blocked); }
-.graph-status-done { color: var(--graph-done); }
 .graph-node:focus > rect, .graph-node:hover > rect, .graph-node.graph-selected > rect, .graph-node.graph-match > rect { stroke: var(--pico-primary); stroke-width: 3; }
 .graph-title { fill: var(--graph-text); font: 500 13px system-ui, sans-serif; }
 .graph-meta { fill: var(--pico-muted-color); font: 10px ui-monospace, monospace; }
-.graph-legend { display: flex; gap: .8rem; flex-wrap: wrap; font-size: .72rem; color: var(--graph-open); }
+.graph-legend { display: flex; gap: .8rem; flex-wrap: wrap; font-size: .72rem; color: var(--status-color, var(--status-open)); }
 .graph-legend span { display: inline-flex; align-items: center; gap: .3rem; }
 .graph-legend svg { width: 14px; height: 14px; }
-.graph-progress { color: var(--graph-progress); } .graph-blocked { color: var(--graph-blocked); } .graph-done { color: var(--graph-done); }
+#graph-inspector .graph-preview-waiting { color: var(--status-blocked); }
+.graph-legend > span { color: var(--status-color); }
 #graph-inspector { position: absolute; z-index: 5; width: min(300px, calc(100% - 24px)); max-height: calc(100% - 24px); overflow: auto; padding: 14px; border: 1px solid var(--pico-muted-border-color); border-radius: 8px; background: var(--surface-raised); color: var(--pico-color); box-shadow: 0 8px 28px #0004; font-size: .8rem; }
 #graph-inspector[hidden] { display: none; }
 .graph-preview-title { display: block; color: var(--graph-text); font-weight: 600; font-size: .9rem; line-height: 1.4; text-decoration: none; padding-right: 18px; }

@@ -1492,22 +1492,11 @@ pub async fn board(State(state): State<AppState>, Query(query): Query<BoardQuery
             )
         };
 
-        // Fetch the set of task IDs that have at least one open blocker (via dep graph).
-        // These tasks belong in the Blocked column regardless of their `status` field,
-        // because `dep add` does not automatically change a task's status to "blocked".
-        let dep_blocked_ids: std::collections::HashSet<String> =
-            db.get_blocked_tasks()?.into_iter().map(|t| t.id).collect();
-
-        // Fetch open tasks, then split: those with open blockers go to the blocked column.
-        let open_raw = fetch("open", false)?;
-        let (dep_blocked_open, open_raw_filtered): (Vec<Task>, Vec<Task>) = open_raw
-            .into_iter()
-            .partition(|t| dep_blocked_ids.contains(&t.id));
-
+        // Columns reflect saved status, just like lists, epic boards and graph nodes.
+        // Unfinished prerequisites remain a separate warning on the card.
+        let open_raw_filtered = fetch("open", false)?;
         let in_progress_raw = fetch("in_progress", false)?;
-        // Combine status=blocked tasks with open tasks that have active dep blockers.
-        let mut blocked_raw = fetch("blocked", false)?;
-        blocked_raw.extend(dep_blocked_open);
+        let blocked_raw = fetch("blocked", false)?;
         let done_raw = fetch("done", true)?;
 
         // Compute the done_since cutoff for filtering completed tasks.

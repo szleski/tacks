@@ -15,6 +15,7 @@ async fn graph_includes_completed_isolated_and_cross_epic_issues() {
         ("a", Some("epic-a"), true),
         ("b", Some("epic-b"), false),
         ("isolated", None, false),
+        ("waiting", Some("epic-b"), false),
     ] {
         let now = chrono::Utc::now();
         db.insert_task(&Task {
@@ -38,6 +39,7 @@ async fn graph_includes_completed_isolated_and_cross_epic_issues() {
         .unwrap();
     }
     db.add_dependency("b", "a").unwrap();
+    db.add_dependency("waiting", "b").unwrap();
     let app = tacks::web::create_router(tacks::web::AppState {
         db: Arc::new(Mutex::new(db)),
         last_data_version: Arc::new(AtomicI64::new(0)),
@@ -56,7 +58,7 @@ async fn graph_includes_completed_isolated_and_cross_epic_issues() {
         .json()
         .await
         .unwrap();
-    assert_eq!(data["tasks"].as_array().unwrap().len(), 5);
+    assert_eq!(data["tasks"].as_array().unwrap().len(), 6);
     assert!(
         data["tasks"]
             .as_array()
@@ -73,7 +75,7 @@ async fn graph_includes_completed_isolated_and_cross_epic_issues() {
     );
     assert_eq!(
         data["dependencies"],
-        serde_json::json!([{"parent_id":"a", "child_id":"b"}])
+        serde_json::json!([{"parent_id":"a", "child_id":"b"}, {"parent_id":"b", "child_id":"waiting"}])
     );
     let html = client
         .get(format!("{url}/graph"))
@@ -87,7 +89,50 @@ async fn graph_includes_completed_isolated_and_cross_epic_issues() {
         .unwrap();
     assert!(html.contains("id=\"graph-svg\""));
     assert!(html.contains("id=\"nav-graph\""));
-    for asset in ["graph.js", "graph-layout.js"] {
+    // A prerequisite must not silently change the status column of an open issue.
+    let board = client
+        .get(format!("{url}/board"))
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    let open_column = board
+        .split("data-status=\"open\"")
+        .nth(1)
+        .unwrap()
+        .split("data-status=\"in_progress\"")
+        .next()
+        .unwrap();
+    assert!(open_column.contains("data-task-id=\"waiting\""));
+    assert!(open_column.contains("Waiting on prerequisites"));
+    for path in [
+        "/tasks",
+        "/board",
+        "/epics",
+        "/graph",
+        "/tasks/waiting",
+        "/epics/epic-b",
+    ] {
+        let page = client
+            .get(format!("{url}{path}"))
+            .send()
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap()
+            .text()
+            .await
+            .unwrap();
+        for status in ["open", "in_progress", "blocked", "done"] {
+            assert!(
+                page.contains(&format!("id=\"status-{status}-icon\"")),
+                "{path} missing shared {status} symbol"
+            );
+        }
+    }
+    for asset in ["status.js", "graph.js", "graph-layout.js"] {
         assert!(
             client
                 .get(format!("{url}/static/{asset}"))

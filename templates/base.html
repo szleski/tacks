@@ -14,11 +14,20 @@
     <link rel="stylesheet" href="/static/pico.min.css">
     <link rel="stylesheet" href="/static/app.css">
     <script src="/static/htmx.min.js"></script>
+    <script src="/static/status.js" defer></script>
     <script src="/static/app.js" defer></script>
     <script src="/static/graph-layout.js" defer></script>
     <script src="/static/graph.js" defer></script>
 </head>
 <body>
+    <svg class="status-symbols" width="0" height="0" aria-hidden="true" focusable="false">
+      <defs>
+        <symbol id="status-open-icon" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+        <symbol id="status-in_progress-icon" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 3a5 5 0 0 1 0 10z" fill="currentColor"/></symbol>
+        <symbol id="status-blocked-icon" viewBox="0 0 16 16"><path d="M8 1 15 8 8 15 1 8Z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 4v5m0 2v1" stroke="currentColor" stroke-width="1.5"/></symbol>
+        <symbol id="status-done-icon" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m4 8 3 3 5-6" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+      </defs>
+    </svg>
     <header class="app-header">
     <nav class="container nav-tabs" aria-label="Workspace">
         <ul>

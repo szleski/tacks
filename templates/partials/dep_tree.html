@@ -1,3 +1,4 @@
+{% import "partials/status_macros.html" as status_ui %}
 {% if up_nodes.is_empty() && down_nodes.is_empty() %}
 <p class="dep-tree-empty">No dependencies</p>
 {% else %}
@@ -8,10 +9,9 @@
     <ul class="dep-tree-list">
       {% for node in &up_nodes %}
       <li class="dep-tree-node" style="--depth: {{ node.depth }}">
-        <span class="dep-status-dot dep-status-{{ node.task.status }}"></span>
         <span class="badge priority-{{ node.task.priority }}">P{{ node.task.priority }}</span>
         <a href="/tasks/{{ node.task.id }}" class="dep-tree-link">{{ node.task.id }}: {{ node.task.title }}</a>
-        <span class="badge status-{{ node.task.status }}">{{ node.task.status }}</span>
+        {% call status_ui::badge(node.task.status) %}
       </li>
       {% endfor %}
     </ul>
@@ -23,10 +23,9 @@
     <ul class="dep-tree-list">
       {% for node in &down_nodes %}
       <li class="dep-tree-node" style="--depth: {{ node.depth }}">
-        <span class="dep-status-dot dep-status-{{ node.task.status }}"></span>
         <span class="badge priority-{{ node.task.priority }}">P{{ node.task.priority }}</span>
         <a href="/tasks/{{ node.task.id }}" class="dep-tree-link">{{ node.task.id }}: {{ node.task.title }}</a>
-        <span class="badge status-{{ node.task.status }}">{{ node.task.status }}</span>
+        {% call status_ui::badge(node.task.status) %}
       </li>
       {% endfor %}
     </ul>

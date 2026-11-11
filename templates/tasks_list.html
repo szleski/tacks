@@ -1,3 +1,4 @@
+{% import "partials/status_macros.html" as status_ui %}
 {% extends "base.html" %}
 
 {% block title %}Tasks — Tacks{% endblock %}
@@ -25,10 +26,10 @@
         <span class="filter-multiselect-placeholder">All statuses</span>
       </div>
       <ul class="filter-multiselect-dropdown" role="listbox" aria-multiselectable="true" hidden>
-        <li role="option" data-value="open" data-label="○ Open" data-badge-class="status-open"><span class="badge status-open">○ Open</span></li>
-        <li role="option" data-value="in_progress" data-label="◐ In Progress" data-badge-class="status-in_progress"><span class="badge status-in_progress">◐ In Progress</span></li>
-        <li role="option" data-value="done" data-label="✓ Done" data-badge-class="status-done"><span class="badge status-done">✓ Done</span></li>
-        <li role="option" data-value="blocked" data-label="⊘ Blocked" data-badge-class="status-blocked"><span class="badge status-blocked">⊘ Blocked</span></li>
+        <li role="option" data-value="open" data-label="Open" data-badge-class="status-open"><span class="badge status-open">{% call status_ui::icon("open") %} Open</span></li>
+        <li role="option" data-value="in_progress" data-label="In Progress" data-badge-class="status-in_progress"><span class="badge status-in_progress">{% call status_ui::icon("in_progress") %} In Progress</span></li>
+        <li role="option" data-value="blocked" data-label="Blocked" data-badge-class="status-blocked"><span class="badge status-blocked">{% call status_ui::icon("blocked") %} Blocked</span></li>
+        <li role="option" data-value="done" data-label="Done" data-badge-class="status-done"><span class="badge status-done">{% call status_ui::icon("done") %} Done</span></li>
       </ul>
       <input type="hidden" name="status" id="status-hidden-input" value="{{ status_filter.as_deref().unwrap_or_default() }}">
     </div>
@@ -118,7 +119,7 @@
       <td>
         <span data-editable tabindex="0" data-field="title" data-task-id="{{ row.task.id }}">{{ row.task.title }}</span>
         {% if row.blocked_count > 0 %}
-        <span class="badge dep-blocked" title="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}" aria-label="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}">⊘ Blocked</span>
+        <span class="badge dep-blocked" title="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}" aria-label="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}">{% call status_ui::icon("blocked") %} Waiting on prerequisites</span>
         {% endif %}
         {% if row.children_total > 0 %}
         <span class="subtask-count" title="{{ row.children_done }} of {{ row.children_total }} subtasks done">{{ row.children_done }}/{{ row.children_total }}</span>
@@ -127,12 +128,7 @@
         <a href="/epics/{{ pid }}" class="epic-badge" title="{{ ptitle }}">{{ ptitle }}</a>
         {% endif %}
       </td>
-      <td data-editable tabindex="0" data-field="status" data-task-id="{{ row.task.id }}"><span class="badge status-{{ row.task.status }}">
-        {%- if row.task.status == crate::models::Status::Open -%}○ Open
-        {%- else if row.task.status == crate::models::Status::InProgress -%}◐ In Progress
-        {%- else if row.task.status == crate::models::Status::Done -%}✓ Done
-        {%- else -%}⊘ Blocked{%- endif -%}
-      </span></td>
+      <td data-editable tabindex="0" data-field="status" data-task-id="{{ row.task.id }}">{% call status_ui::badge(row.task.status) %}</td>
       <td data-editable tabindex="0" data-field="priority" data-task-id="{{ row.task.id }}"><span class="badge priority-{{ row.task.priority }}">
         {%- if row.task.priority == 0 -%}▲ P0{%- else if row.task.priority == 1 -%}▲ P1
         {%- else if row.task.priority == 2 -%}▬ P2

@@ -1,3 +1,4 @@
+{% import "partials/status_macros.html" as status_ui %}
 {% extends "base.html" %}
 {% block title %}Graph — Tacks{% endblock %}
 {% block content %}
@@ -17,10 +18,10 @@
     <div class="graph-caption">
         <p id="graph-summary" role="status" aria-live="polite">Loading issues…</p>
         <div class="graph-legend" aria-label="Issue status legend">
-            <span><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Open</span>
-            <span class="graph-progress"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 3a5 5 0 0 1 0 10z" fill="currentColor"/></svg>In progress</span>
-            <span class="graph-blocked"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1 15 8 8 15 1 8Z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 4v5m0 2v1" stroke="currentColor" stroke-width="1.5"/></svg>Blocked</span>
-            <span class="graph-done"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m4 8 3 3 5-6" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Done</span>
+            <span class="status-open">{% call status_ui::icon("open") %}Open</span>
+            <span class="status-in_progress">{% call status_ui::icon("in_progress") %}In Progress</span>
+            <span class="status-blocked">{% call status_ui::icon("blocked") %}Blocked</span>
+            <span class="status-done">{% call status_ui::icon("done") %}Done</span>
         </div>
     </div>
     <div class="graph-stage">

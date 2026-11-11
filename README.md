@@ -91,7 +91,10 @@ Ordinary two-finger scrolling scrolls the page. Compact buttons also control zoo
 Search highlights issues without hiding the rest. Hover or focus a node to preview its
 blockers and dependents; click it or press Enter to open the issue directly.
 Status shapes and written labels distinguish open, in-progress, blocked, and done
-work independently of colour. Use **Refresh** after CLI changes.
+work independently of colour. The same colours, symbols, labels, and status order
+are used in filters, lists, boards, epic pages, and issue details. Views show the
+saved status; unfinished prerequisites are a separate warning and do not move
+an issue into a different status column. Use **Refresh** after CLI changes.
 The unfiltered snapshot is also available at `GET /api/graph`.
 
 Try an isolated sample with five epics, 25 child tasks, and 27 dependencies

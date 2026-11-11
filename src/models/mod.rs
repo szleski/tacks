@@ -28,6 +28,16 @@ pub enum Status {
 }
 
 impl Status {
+    /// Human-readable web label; serialized status values stay unchanged.
+    pub fn label(&self) -> &'static str {
+        match self {
+            Status::Open => "Open",
+            Status::InProgress => "In Progress",
+            Status::Blocked => "Blocked",
+            Status::Done => "Done",
+        }
+    }
+
     pub fn as_str(&self) -> &'static str {
         match self {
             Status::Open => "open",

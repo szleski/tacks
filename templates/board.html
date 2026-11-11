@@ -1,3 +1,4 @@
+{% import "partials/status_macros.html" as status_ui %}
 {% extends "base.html" %}
 
 {% block title %}Board — Tacks{% endblock %}
@@ -66,7 +67,7 @@
      hx-select="#board-columns"
      hx-swap="outerHTML show:none">
   <div class="board-column" data-status="open">
-    <h2>Open <span class="column-count">{{ open_tasks.len() }}</span></h2>
+    <h2>{% call status_ui::icon("open") %} Open <span class="column-count">{{ open_tasks.len() }}</span></h2>
     <div class="column-cards">
     {% for row in open_tasks %}
     <article class="board-card" draggable="true" data-task-id="{{ row.task.id }}" tabindex="0">
@@ -82,7 +83,7 @@
       </div>
       {% if row.blocked_count > 0 %}
       <div class="board-card-blocked">
-        <span class="badge dep-blocked" title="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}" aria-label="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}">⊘ Blocked</span>
+        <span class="badge dep-blocked" title="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}" aria-label="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}">{% call status_ui::icon("blocked") %} Waiting on prerequisites</span>
       </div>
       {% endif %}
     </article>
@@ -91,7 +92,7 @@
     </div>
   </div>
   <div class="board-column" data-status="in_progress">
-    <h2>In Progress <span class="column-count">{{ in_progress_tasks.len() }}</span></h2>
+    <h2>{% call status_ui::icon("in_progress") %} In Progress <span class="column-count">{{ in_progress_tasks.len() }}</span></h2>
     <div class="column-cards">
     {% for row in in_progress_tasks %}
     <article class="board-card" draggable="true" data-task-id="{{ row.task.id }}" tabindex="0">
@@ -107,7 +108,7 @@
       </div>
       {% if row.blocked_count > 0 %}
       <div class="board-card-blocked">
-        <span class="badge dep-blocked" title="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}" aria-label="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}">⊘ Blocked</span>
+        <span class="badge dep-blocked" title="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}" aria-label="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}">{% call status_ui::icon("blocked") %} Waiting on prerequisites</span>
       </div>
       {% endif %}
     </article>
@@ -116,7 +117,7 @@
     </div>
   </div>
   <div class="board-column" data-status="blocked">
-    <h2>Blocked <span class="column-count">{{ blocked_tasks.len() }}</span></h2>
+    <h2>{% call status_ui::icon("blocked") %} Blocked <span class="column-count">{{ blocked_tasks.len() }}</span></h2>
     <div class="column-cards">
     {% for row in blocked_tasks %}
     <article class="board-card" draggable="true" data-task-id="{{ row.task.id }}" tabindex="0">
@@ -132,7 +133,7 @@
       </div>
       {% if row.blocked_count > 0 %}
       <div class="board-card-blocked">
-        <span class="badge dep-blocked" title="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}" aria-label="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}">⊘ Blocked</span>
+        <span class="badge dep-blocked" title="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}" aria-label="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}">{% call status_ui::icon("blocked") %} Waiting on prerequisites</span>
       </div>
       {% endif %}
     </article>
@@ -142,7 +143,7 @@
   </div>
   <div class="board-column" data-status="done">
     <h2>
-      <button class="column-collapse-toggle" data-column="done" data-storage-key="board-done-collapsed" aria-label="Toggle done column">&#9660;</button>
+      {% call status_ui::icon("done") %}<button class="column-collapse-toggle" data-column="done" data-storage-key="board-done-collapsed" aria-label="Toggle done column">&#9660;</button>
       Done <span class="column-count">{{ done_tasks.len() }}</span>
     </h2>
     <div class="column-cards">
@@ -160,7 +161,7 @@
       </div>
       {% if row.blocked_count > 0 %}
       <div class="board-card-blocked">
-        <span class="badge dep-blocked" title="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}" aria-label="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}">⊘ Blocked</span>
+        <span class="badge dep-blocked" title="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}" aria-label="Blocked by {{ row.blocked_count }} {% if row.blocked_count == 1 %}task{% else %}tasks{% endif %}">{% call status_ui::icon("blocked") %} Waiting on prerequisites</span>
       </div>
       {% endif %}
     </article>
