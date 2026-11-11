@@ -86,9 +86,12 @@ Open **Graph** in the navigation bar, or visit `/graph`. It shows every issue,
 including epics, completed work, and issues with no dependency edges. Epic lanes
 keep related work together; solid arrows point from blocker to dependent and
 dashed lines show parent membership. Cross-epic dependencies appear in the same
-view. Drag to pan, scroll or use the buttons to zoom, and use **Fit all** to reset.
-Search highlights issues without hiding the rest. Select a node to inspect its
-blockers and dependents or open the issue. Use **Refresh** after CLI changes.
+view. Drag to pan, pinch (or Control-scroll) to zoom, and use **Fit** to reset.
+Ordinary two-finger scrolling scrolls the page. Compact buttons also control zoom.
+Search highlights issues without hiding the rest. Hover or focus a node to preview its
+blockers and dependents; click it or press Enter to open the issue directly.
+Status shapes and written labels distinguish open, in-progress, blocked, and done
+work independently of colour. Use **Refresh** after CLI changes.
 The unfiltered snapshot is also available at `GET /api/graph`.
 
 Try an isolated sample with five epics, 25 child tasks, and 27 dependencies

@@ -3,20 +3,31 @@
 {% block content %}
 <section id="dependency-graph" aria-labelledby="graph-heading">
     <h1 id="graph-heading">Dependency graph</h1>
-    <p>Every issue, across every epic. Arrows run from blocker to dependent. Dashed lines show parent membership.</p>
-    <div class="graph-toolbar" role="group" aria-label="Graph controls">
-        <input type="search" id="graph-search" placeholder="Find an issue by title or ID" aria-label="Find an issue by title or ID">
-        <button type="button" id="graph-fit" class="secondary">Fit all</button>
-        <button type="button" id="graph-in" class="secondary" aria-label="Zoom in">+</button>
-        <button type="button" id="graph-out" class="secondary" aria-label="Zoom out">−</button>
-        <button type="button" id="graph-refresh" class="secondary">Refresh</button>
+    <p class="graph-description">Dependencies across every epic. Arrows point from blocker to dependent; dashed lines show parent membership.</p>
+    <div class="graph-toolbar">
+        <input type="search" id="graph-search" placeholder="Find an issue…" aria-label="Find an issue by title or ID">
+        <div class="graph-tools" role="group" aria-label="Graph controls">
+            <button type="button" id="graph-out" aria-label="Zoom out" title="Zoom out">−</button>
+            <button type="button" id="graph-in" aria-label="Zoom in" title="Zoom in">+</button>
+            <span class="graph-tool-divider" aria-hidden="true"></span>
+            <button type="button" id="graph-fit" title="Fit all issues">Fit</button>
+            <button type="button" id="graph-refresh" aria-label="Refresh graph" title="Refresh graph">↻</button>
+        </div>
     </div>
-    <p id="graph-summary" role="status" aria-live="polite">Loading issues…</p>
-    <div class="graph-legend"><span>● Open</span><span class="graph-progress">● In progress</span><span class="graph-blocked">● Blocked by unfinished work</span><span class="graph-done">● Done</span></div>
+    <div class="graph-caption">
+        <p id="graph-summary" role="status" aria-live="polite">Loading issues…</p>
+        <div class="graph-legend" aria-label="Issue status legend">
+            <span><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Open</span>
+            <span class="graph-progress"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 3a5 5 0 0 1 0 10z" fill="currentColor"/></svg>In progress</span>
+            <span class="graph-blocked"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1 15 8 8 15 1 8Z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 4v5m0 2v1" stroke="currentColor" stroke-width="1.5"/></svg>Blocked</span>
+            <span class="graph-done"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m4 8 3 3 5-6" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Done</span>
+        </div>
+    </div>
     <div class="graph-stage">
-        <svg id="graph-svg" role="group" aria-label="All issues and dependencies. Drag to pan, scroll to zoom. Tab to an issue and press Enter to inspect." tabindex="0"></svg>
+        <svg id="graph-svg" role="group" aria-label="All issues and dependencies. Drag to pan. Pinch or Control-scroll to zoom. Hover or focus to preview an issue; click or press Enter to open it." tabindex="0"></svg>
+        <aside id="graph-inspector" aria-label="Issue preview" hidden></aside>
     </div>
-    <aside id="graph-inspector" aria-label="Selected issue" aria-live="polite">Select an issue to see its blockers and dependents. Drag to pan; scroll to zoom. Search highlights matches without hiding issues.</aside>
+    <p class="graph-hint">Drag to pan · Pinch or Ctrl + scroll to zoom · Hover to preview · Click to open</p>
     <noscript>Enable JavaScript to display the dependency graph.</noscript>
 </section>
 {% endblock %}
