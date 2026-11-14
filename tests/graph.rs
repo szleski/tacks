@@ -175,3 +175,82 @@ async fn graph_includes_completed_isolated_and_cross_epic_issues() {
     }
     server.abort();
 }
+
+/// WCAG relative luminance of a `#rrggbb` colour.
+fn relative_luminance(hex: &str) -> f64 {
+    let channel = |i: usize| {
+        let c = f64::from(u8::from_str_radix(&hex[1 + 2 * i..3 + 2 * i], 16).unwrap()) / 255.0;
+        if c <= 0.04045 {
+            c / 12.92
+        } else {
+            ((c + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    0.2126 * channel(0) + 0.7152 * channel(1) + 0.0722 * channel(2)
+}
+
+/// WCAG contrast ratio between two `#rrggbb` colours (always >= 1).
+fn contrast_ratio(a: &str, b: &str) -> f64 {
+    let (la, lb) = (relative_luminance(a), relative_luminance(b));
+    (la.max(lb) + 0.05) / (la.min(lb) + 0.05)
+}
+
+/// Read a 6-digit hex value for `--<name>` from a single-line CSS token rule.
+fn css_hex_token<'a>(rule: &'a str, name: &str) -> &'a str {
+    let needle = format!("--{name}:#");
+    let start = rule
+        .find(&needle)
+        .unwrap_or_else(|| panic!("missing css token --{name} in `{rule}`"))
+        + needle.len()
+        - 1;
+    let hex = &rule[start..start + 7];
+    assert!(
+        hex[1..].chars().all(|c| c.is_ascii_hexdigit()),
+        "css token --{name} is not a 6-digit hex colour: {hex}"
+    );
+    hex
+}
+
+// Graph cards are filled with `--status-fill-<status>` and labelled with
+// `--status-ink-<status>`. Two properties must survive palette tweaks:
+// ink stays readable on its fill (WCAG AA, 4.5:1), and the three "cool"
+// statuses differ in lightness. Blue (in_progress) and purple (done) fills with
+// similar lightness are only ~ΔE 1 apart under deuteranopia/protanopia, so hue
+// alone cannot be relied on by red-green colour blind users.
+#[test]
+fn graph_status_fills_keep_text_contrast_and_cvd_safe_lightness_steps() {
+    let css = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("static/app.css"),
+    )
+    .unwrap();
+    for (theme, selector) in [("light", ":root {"), ("dark", "[data-theme=\"dark\"] {")] {
+        let rule = css
+            .lines()
+            .find(|l| l.starts_with(selector) && l.contains("--status-fill-open"))
+            .unwrap_or_else(|| panic!("no {theme} status token rule starting with `{selector}`"));
+        let fill = |s: &str| css_hex_token(rule, &format!("status-fill-{s}"));
+        let ink = |s: &str| css_hex_token(rule, &format!("status-ink-{s}"));
+        for status in ["open", "in_progress", "blocked", "done"] {
+            let ratio = contrast_ratio(ink(status), fill(status));
+            assert!(
+                ratio >= 4.5,
+                "{theme} {status}: ink {} on fill {} has contrast {ratio:.2}:1, need >= 4.5:1",
+                ink(status),
+                fill(status)
+            );
+        }
+        for (a, b) in [
+            ("open", "in_progress"),
+            ("in_progress", "done"),
+            ("open", "done"),
+        ] {
+            let ratio = contrast_ratio(fill(a), fill(b));
+            assert!(
+                ratio >= 1.5,
+                "{theme} fills {a} ({}) and {b} ({}) differ in lightness by only {ratio:.2}:1, need >= 1.5:1 to stay distinguishable without colour",
+                fill(a),
+                fill(b)
+            );
+        }
+    }
+}

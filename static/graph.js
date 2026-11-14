@@ -130,14 +130,24 @@
       graph.nodes.forEach(n => {
         const g = el('a', {href: '/tasks/' + encodeURIComponent(n.id), class: `graph-node ${n.isLaneHeader ? 'graph-lane-header' : 'graph-issue-card'} graph-status-${state(n)}`, transform: `translate(${n.x},${n.y})`, tabindex: 0, role: 'button', 'aria-pressed': 'false', 'aria-label': `${n.id}: ${n.title}; ${window.TacksStatus[state(n)].label}`});
         g.dataset.id = n.id;
-        const glyph = el('use', {href: window.TacksStatus[n.status].symbol, class: 'graph-status-icon', x: n.isLaneHeader ? 0 : 7, y: n.isLaneHeader ? 0 : 9, width: 16, height: 16, 'aria-hidden': 'true'});
+        // Tickets are filled with their status colour. Highlight cues (hover, selection, blockers, dependents)
+        // live on a ring that sits outside the fill so they stay visible on every status colour.
+        const ring = (w, h, rx) => el('rect', {x: -4, y: -4, width: w + 8, height: h + 8, rx: rx + 4, class: 'graph-ring'});
+        const glyph = el('use', {href: window.TacksStatus[n.status].symbol, class: 'graph-status-icon', x: n.isLaneHeader ? 6 : 7, y: n.isLaneHeader ? 4 : 9, width: 16, height: 16, 'aria-hidden': 'true'});
+        // The hover preview is positioned beside this element: the card itself, or the label of a full-width lane banner.
+        let anchor;
         if (n.isLaneHeader) {
+          g.append(ring(n.width, n.height, 6));
+          g.append(el('rect', {width: n.width, height: n.height, rx: 6, class: 'graph-card'}));
           g.append(glyph);
           const label = `${n.title} · ${n.id} · P${n.priority} · ${window.TacksStatus[n.status].label}`;
-          const max = Math.max(12, Math.floor((n.width - 24) / 7));
-          g.append(el('text', {x: 24, y: 14, class: 'graph-lane-title'}, label.length > max ? label.slice(0, max - 1) + '…' : label));
+          const max = Math.max(12, Math.floor((n.width - 40) / 7));
+          anchor = el('text', {x: 30, y: 17, class: 'graph-lane-title'}, label.length > max ? label.slice(0, max - 1) + '…' : label);
+          g.append(anchor);
         } else {
-          g.append(el('rect', {width: 240, height: 74, rx: 8}));
+          g.append(ring(240, 74, 8));
+          anchor = el('rect', {width: 240, height: 74, rx: 8, class: 'graph-card'});
+          g.append(anchor);
           g.append(glyph);
           g.append(el('text', {x: 26, y: 22, class: 'graph-meta'}, `${n.id} · P${n.priority} · ${window.TacksStatus[state(n)].label}`));
           // The full title remains available in the hover preview.
@@ -153,14 +163,14 @@
         g.addEventListener('keydown', e => {
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(n.id); }
         });
-        g.addEventListener('pointerenter', () => preview(n.id, g));
+        g.addEventListener('pointerenter', () => preview(n.id, anchor));
         g.addEventListener('pointerleave', scheduleHide);
         g.addEventListener('blur', scheduleHide);
         g.addEventListener('focus', () => {
           if (box && box.w < graph.width && (n.x < box.x || n.x + n.width > box.x + box.w || n.y < box.y || n.y + n.height > box.y + box.h)) {
             box.x = n.x + Math.min(n.width, box.w) / 2 - box.w / 2; box.y = n.y + n.height / 2 - box.h / 2; view();
           }
-          preview(n.id, g, 0);
+          preview(n.id, anchor, 0);
         });
         svg.append(g);
       });

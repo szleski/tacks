@@ -42,10 +42,15 @@
 /* Status tokens and symbols are shared by every view, including the graph. */
 :root { --status-open: #536278; --status-in_progress: #1761ad; --status-blocked: #895100; --status-done: #6d43aa; }
 [data-theme="dark"] { --status-open: #c2cfda; --status-in_progress: #8dcaff; --status-blocked: #ffd080; --status-done: #d1b5ff; }
-.status-open, .graph-status-open, .board-column[data-status="open"] { --status-color: var(--status-open); }
-.status-in_progress, .graph-status-in_progress, .board-column[data-status="in_progress"] { --status-color: var(--status-in_progress); }
-.status-blocked, .graph-status-blocked, .board-column[data-status="blocked"], .dep-blocked { --status-color: var(--status-blocked); }
-.status-done, .graph-status-done, .board-column[data-status="done"] { --status-color: var(--status-done); }
+/* Filled-surface palette (graph cards, legend chips). Fills differ in both lightness and hue so the four
+   statuses stay distinct under red-green colour blindness; each ink meets >=4.5:1 on its fill and the
+   --status-* colours above act as the border. Keep each theme on a single line. */
+:root { --status-fill-open:#eceff4; --status-ink-open:#1b2430; --status-fill-in_progress:#1d5fae; --status-ink-in_progress:#ffffff; --status-fill-blocked:#f2b134; --status-ink-blocked:#201400; --status-fill-done:#a496d2; --status-ink-done:#1a1233; }
+[data-theme="dark"] { --status-fill-open:#263b4d; --status-ink-open:#f0f2f6; --status-fill-in_progress:#2a6cc0; --status-ink-in_progress:#ffffff; --status-fill-blocked:#f2b134; --status-ink-blocked:#201400; --status-fill-done:#c4b6f2; --status-ink-done:#1a1033; }
+.status-open, .graph-status-open, .board-column[data-status="open"] { --status-color: var(--status-open); --status-fill: var(--status-fill-open); --status-ink: var(--status-ink-open); }
+.status-in_progress, .graph-status-in_progress, .board-column[data-status="in_progress"] { --status-color: var(--status-in_progress); --status-fill: var(--status-fill-in_progress); --status-ink: var(--status-ink-in_progress); }
+.status-blocked, .graph-status-blocked, .board-column[data-status="blocked"], .dep-blocked { --status-color: var(--status-blocked); --status-fill: var(--status-fill-blocked); --status-ink: var(--status-ink-blocked); }
+.status-done, .graph-status-done, .board-column[data-status="done"] { --status-color: var(--status-done); --status-fill: var(--status-fill-done); --status-ink: var(--status-ink-done); }
 .badge:is(.status-open, .status-in_progress, .status-blocked, .status-done), .badge.dep-blocked {
   color: var(--status-color);
   background: color-mix(in srgb, var(--status-color) 14%, transparent);
@@ -2180,18 +2185,24 @@ a.view-toggle-btn:focus-visible {
 .graph-edge { fill: none; stroke: var(--pico-muted-color); stroke-width: 1.7; }
 .graph-edge-blocker { stroke: var(--graph-blocker); stroke-width: 3; }
 .graph-edge-dependent { stroke: var(--graph-dependent); stroke-width: 3; stroke-dasharray: 8 4; }
-.graph-node.graph-blocker > rect { stroke: var(--graph-blocker); stroke-width: 3; }
-.graph-node.graph-dependent > rect { stroke: var(--graph-dependent); stroke-width: 3; stroke-dasharray: 8 4; }
-.graph-node { cursor: pointer; outline: none; text-decoration: none; color: var(--status-color, var(--status-open)); }
-.graph-node > rect { fill: var(--pico-card-background-color); stroke: var(--pico-muted-color); stroke-width: 1.2; }
-.graph-node:focus > rect, .graph-node:hover > rect, .graph-node.graph-selected > rect, .graph-node.graph-match > rect { stroke: var(--pico-primary); stroke-width: 3; }
-.graph-title { fill: var(--graph-text); font: 500 13px system-ui, sans-serif; }
-.graph-meta { fill: var(--pico-muted-color); font: 10px ui-monospace, monospace; }
-.graph-legend { display: flex; gap: .8rem; flex-wrap: wrap; font-size: .72rem; color: var(--status-color, var(--status-open)); }
-.graph-legend span { display: inline-flex; align-items: center; gap: .3rem; }
+/* Every ticket (issue card or epic lane banner) is a filled surface: fill = status, ink = text/icon, stroke = status border.
+   Non-scaling strokes keep borders crisp when the graph is zoomed out. */
+.graph-node { cursor: pointer; outline: none; text-decoration: none; color: var(--status-ink, var(--graph-text)); }
+.graph-card { fill: var(--status-fill, var(--pico-card-background-color)); stroke: var(--status-color, var(--pico-muted-color)); stroke-width: 2; vector-effect: non-scaling-stroke; }
+/* Highlight cues live on a ring outside the fill so they never vanish against a coloured card. */
+.graph-ring { fill: none; stroke: transparent; stroke-width: 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+.graph-node.graph-blocker > .graph-ring { stroke: var(--graph-blocker); stroke-width: 3; }
+.graph-node.graph-dependent > .graph-ring { stroke: var(--graph-dependent); stroke-width: 3; stroke-dasharray: 8 4; }
+.graph-node:focus > .graph-ring, .graph-node:hover > .graph-ring, .graph-node.graph-selected > .graph-ring, .graph-node.graph-match > .graph-ring { stroke: var(--pico-primary); stroke-width: 3; }
+.graph-title { fill: var(--status-ink, var(--graph-text)); font: 500 13px system-ui, sans-serif; }
+.graph-meta { fill: var(--status-ink, var(--graph-text)); font: 10px ui-monospace, monospace; }
+.graph-lane-header .graph-lane-title { fill: var(--status-ink, var(--graph-text)); }
+/* Legend: a key that reuses the card tokens, so a chip looks exactly like the ticket it describes. */
+.graph-legend { display: flex; gap: .5rem; flex-wrap: wrap; font-size: .72rem; }
+.graph-legend > span { display: inline-flex; align-items: center; gap: .3rem; padding: .1rem .5rem; border: 1.5px solid var(--status-color); border-radius: 6px; background: var(--status-fill); color: var(--status-ink); }
+.graph-legend .status-icon { color: var(--status-ink); }
 .graph-legend svg { width: 14px; height: 14px; }
 #graph-inspector .graph-preview-waiting { color: var(--status-blocked); }
-.graph-legend > span { color: var(--status-color); }
 #graph-inspector { position: absolute; z-index: 5; width: min(300px, calc(100% - 24px)); max-height: calc(100% - 24px); overflow: auto; padding: 14px; border: 1px solid var(--pico-muted-border-color); border-radius: 8px; background: var(--surface-raised); color: var(--pico-color); box-shadow: 0 8px 28px #0004; font-size: .8rem; }
 #graph-inspector[hidden] { display: none; }
 .graph-preview-title { display: block; color: var(--graph-text); font-weight: 600; font-size: .9rem; line-height: 1.4; text-decoration: none; }
@@ -2201,7 +2212,3 @@ a.view-toggle-btn:focus-visible {
 .graph-preview-open { display: inline-block; margin-top: .75rem; font-weight: 600; text-decoration: none; }
 .graph-hint { margin: .6rem 0 0; font-size: .72rem; }
 @media (max-width: 600px) { #graph-svg { height: 500px; } #graph-search { background-image: none; flex: 1 1 180px; } }
-
-.graph-lane-header:is(:hover, :focus, .graph-selected, .graph-match) .graph-lane-title { text-decoration: underline; text-decoration-color: var(--pico-primary); text-decoration-thickness: 2px; text-underline-offset: 4px; }
-.graph-lane-header.graph-blocker .graph-lane-title { text-decoration: underline solid var(--graph-blocker) 2px; text-underline-offset: 4px; }
-.graph-lane-header.graph-dependent .graph-lane-title { text-decoration: underline dashed var(--graph-dependent) 2px; text-underline-offset: 4px; }
