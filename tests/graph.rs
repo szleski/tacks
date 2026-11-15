@@ -254,3 +254,109 @@ fn graph_status_fills_keep_text_contrast_and_cvd_safe_lightness_steps() {
         }
     }
 }
+
+/// Contents of `static/<name>` with CSS comments removed.
+fn static_css(name: &str) -> String {
+    let css = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("static")
+            .join(name),
+    )
+    .unwrap();
+    let mut out = String::new();
+    let mut rest = css.as_str();
+    while let Some(start) = rest.find("/*") {
+        out.push_str(&rest[..start]);
+        let comment = &rest[start..];
+        rest = &comment[comment.find("*/").expect("unterminated css comment") + 2..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Whitespace-free bodies of every rule that begins with exactly `opener` (selector plus `{`,
+/// at the start of a line or right after another rule), in source order so that later bodies
+/// override earlier ones the way equal-specificity rules do in the cascade.
+fn css_rule_bodies(css: &str, opener: &str) -> Vec<String> {
+    css.match_indices(opener)
+        .filter(|(i, _)| *i == 0 || matches!(css.as_bytes()[i - 1], b'\n' | b'}' | b','))
+        .map(|(i, _)| {
+            let body = &css[i + opener.len()..];
+            let body = &body[..body.find('}').expect("unterminated css rule")];
+            body.split_whitespace().collect::<String>()
+        })
+        .collect()
+}
+
+/// Resolve `--<name>` to a `#rrggbb` colour across `blocks` (last declaration wins),
+/// following `var(--other)` indirections.
+fn resolve_css_hex(blocks: &[String], name: &str) -> String {
+    let prefix = format!("--{name}:");
+    let decl = blocks
+        .iter()
+        .flat_map(|b| b.split(';'))
+        .rfind(|d| d.starts_with(&prefix))
+        .unwrap_or_else(|| panic!("css token --{name} is not declared in {blocks:?}"));
+    match decl[prefix.len()..]
+        .strip_prefix("var(--")
+        .and_then(|v| v.strip_suffix(')'))
+    {
+        Some(other) => resolve_css_hex(blocks, other),
+        None => css_hex_token(decl, name).to_string(),
+    }
+}
+
+// Highlighted blockers (solid) and dependents (dashed) are drawn as edge strokes and card rings
+// straight on the graph background (`--pico-card-background-color`). The old blue/purple pair was
+// ~1.1:1 apart in lightness, which collapses to dE ~1 under deuteranopia, so the pair must stay
+// separable by lightness (not hue alone) and each must stay visible on the background (4.5:1).
+// The background is resolved from the CSS cascade (pico.min.css, then app.css overrides): light
+// resolves to Pico's `var(--pico-background-color)` as overridden in app.css, dark to
+// `var(--surface-raised)`.
+#[test]
+fn graph_highlight_colours_stay_legible_and_differ_in_lightness() {
+    let app = static_css("app.css");
+    let pico = static_css("pico.min.css");
+    let graph_svg = app
+        .lines()
+        .find(|l| l.starts_with("#graph-svg {"))
+        .expect("no `#graph-svg {` rule in app.css");
+    assert!(
+        graph_svg.contains("background: var(--pico-card-background-color)"),
+        "graph background is no longer --pico-card-background-color; update this test: {graph_svg}"
+    );
+    let bodies = |css: &str, openers: &[&str]| -> Vec<String> {
+        openers
+            .iter()
+            .flat_map(|o| css_rule_bodies(css, o))
+            .collect()
+    };
+    let mut light_surface = bodies(&pico, &[":root:not([data-theme=dark]),[data-theme=light]{"]);
+    light_surface.extend(bodies(&app, &[":root:not([data-theme=\"dark\"]) {"]));
+    let mut dark_surface = bodies(&pico, &["[data-theme=dark]{"]);
+    dark_surface.extend(bodies(&app, &["[data-theme=\"dark\"] {"]));
+    let light_graph = bodies(&app, &["#dependency-graph {"]);
+    let mut dark_graph = light_graph.clone();
+    dark_graph.extend(bodies(&app, &["[data-theme=\"dark\"] #dependency-graph {"]));
+
+    for (theme, surface, graph) in [
+        ("light", &light_surface, &light_graph),
+        ("dark", &dark_surface, &dark_graph),
+    ] {
+        let background = resolve_css_hex(surface, "pico-card-background-color");
+        let blocker = resolve_css_hex(graph, "graph-blocker");
+        let dependent = resolve_css_hex(graph, "graph-dependent");
+        for (role, colour) in [("blocker", &blocker), ("dependent", &dependent)] {
+            let ratio = contrast_ratio(colour, &background);
+            assert!(
+                ratio >= 4.5,
+                "{theme} {role} {colour} on graph background {background} has contrast {ratio:.2}:1, need >= 4.5:1"
+            );
+        }
+        let ratio = contrast_ratio(&blocker, &dependent);
+        assert!(
+            ratio >= 1.5,
+            "{theme} blocker {blocker} and dependent {dependent} differ in lightness by only {ratio:.2}:1, need >= 1.5:1 to stay distinguishable without colour"
+        );
+    }
+}

@@ -7,14 +7,22 @@
     root.dataset.initialized = 'true';
     const svg = root.querySelector('#graph-svg'), summary = root.querySelector('#graph-summary');
     const inspector = root.querySelector('#graph-inspector'), search = root.querySelector('#graph-search');
-    let graph, selected, hovered, box, drag, previewTimer, hideTimer, moved = false;
+    let graph, selected, hovered, box, drag, previewTimer, hideTimer, topEdges, moved = false;
     function el(tag, attrs, text) {
       const e = document.createElementNS(NS, tag);
       Object.entries(attrs || {}).forEach(([key, value]) => e.setAttribute(key, value));
       if (text !== undefined) e.textContent = text;
       return e;
     }
-    function view() { dismiss(); svg.setAttribute('viewBox', `${box.x} ${box.y} ${box.w} ${box.h}`); }
+    function view() { dismiss(); svg.setAttribute('viewBox', `${box.x} ${box.y} ${box.w} ${box.h}`); sizeArrow(); }
+    // The highlighted arrowhead lives in user space, so it would shrink with the zoom (and a stroke-width-scaled marker
+    // ignores non-scaling strokes). Resize it to stay ~12px on screen, capped to fit the 60-unit gap between columns.
+    function sizeArrow() {
+      const marker = svg.querySelector('#graph-arrow-hl');
+      if (!marker || !box) return;
+      const size = Math.min(48, 12 / Math.min(svg.clientWidth / box.w, svg.clientHeight / box.h));
+      marker.setAttribute('markerWidth', size); marker.setAttribute('markerHeight', size);
+    }
     function fit() {
       if (!graph) return;
       box = {x: 0, y: 0, w: graph.width, h: graph.height}; view();
@@ -50,10 +58,20 @@
         e.classList.toggle('graph-dependent', dependents.has(n.id));
         e.setAttribute('aria-pressed', String(n.id === selected));
       });
+      // Focus mode: while the active ticket has links, CSS dims every card and edge outside its direct neighbourhood.
+      svg.classList.toggle('graph-focus', blockers.size + dependents.size > 0);
+      // Related edges are redrawn as copies in a layer above all other edges (the originals step aside), so they are
+      // never buried and the base edges keep their order. The layer is rebuilt on every call, so nothing accumulates.
+      const lifted = [];
       svg.querySelectorAll('.graph-edge').forEach(e => {
-        e.classList.toggle('graph-edge-blocker', e.dataset.to === active);
-        e.classList.toggle('graph-edge-dependent', e.dataset.from === active);
+        const kind = e.dataset.to === active ? 'blocker' : e.dataset.from === active ? 'dependent' : '';
+        e.classList.toggle('graph-edge-lifted', !!kind);
+        if (!kind) return;
+        const copy = e.cloneNode(true);
+        copy.setAttribute('class', `graph-edge-${kind}`); copy.setAttribute('marker-end', 'url(#graph-arrow-hl)');
+        lifted.push(copy);
       });
+      topEdges.replaceChildren(...lifted);
       summary.textContent = `${graph.nodes.length} issues · ${graph.groups.filter(g => g.id).length} epic groups · ${graph.edges.length} dependencies · all statuses included${query ? ` · ${matches} matches` : ''}`;
     }
     function dismiss() {
@@ -113,7 +131,9 @@
     function draw() {
       svg.replaceChildren();
       const defs = el('defs'), marker = el('marker', {id: 'graph-arrow', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse'});
-      marker.append(el('path', {d: 'M 0 0 L 10 5 L 0 10 z', fill: 'context-stroke'})); defs.append(marker); svg.append(defs);
+      marker.append(el('path', {d: 'M 0 0 L 10 5 L 0 10 z', fill: 'context-stroke'})); defs.append(marker);
+      const lift = el('marker', {id: 'graph-arrow-hl', viewBox: '0 0 10 10', refX: 10, refY: 5, markerUnits: 'userSpaceOnUse', orient: 'auto'});
+      lift.append(el('path', {d: 'M 0 0 L 10 5 L 0 10 z', fill: 'context-stroke'})); defs.append(lift); svg.append(defs); sizeArrow();
       graph.groups.forEach(g => {
         svg.append(el('rect', {x: 16, y: g.y, width: g.width - 32, height: g.height - 10, rx: 10, class: 'graph-lane'}));
         if (!g.id) svg.append(el('text', {x: 40, y: g.y + 23, class: 'graph-lane-title'}, g.title));
@@ -132,6 +152,7 @@
         path.append(el('title', {}, `${a.title} blocks ${b.title}`)); svg.append(path);
       }
       graph.edges.forEach(e => edge(e.parent_id, e.child_id));
+      topEdges = el('g', {class: 'graph-edges-top'}); svg.append(topEdges);
       graph.nodes.forEach(n => {
         const g = el('a', {href: '/tasks/' + encodeURIComponent(n.id), class: `graph-node ${n.isLaneHeader ? 'graph-lane-header' : 'graph-issue-card'} graph-status-${state(n)}`, transform: `translate(${n.x},${n.y})`, tabindex: 0, role: 'button', 'aria-pressed': 'false', 'aria-label': `${n.id}: ${n.title}; ${window.TacksStatus[state(n)].label}`});
         g.dataset.id = n.id;

@@ -2165,8 +2165,11 @@ a.view-toggle-btn:focus-visible {
 }
 
 /* Whole-workspace dependency graph */
-#dependency-graph { --graph-text: var(--pico-color); --graph-blocker: #1761ad; --graph-dependent: #6d43aa; }
-[data-theme="dark"] #dependency-graph { --graph-blocker: #8dcaff; --graph-dependent: #d1b5ff; }
+/* Blocker and dependent cues must survive red-green colour blindness: the old blue/purple pair collapsed to dE ~1 under
+   deuteranopia. They now differ strongly in lightness as well as hue (light theme: navy vs mid cyan; dark theme: near-white
+   vs mid cyan) and also in line style (solid vs dashed). Both keep >=4.5:1 against the graph background. */
+#dependency-graph { --graph-text: var(--pico-color); --graph-blocker: #0b2b5c; --graph-dependent: #0e7490; }
+[data-theme="dark"] #dependency-graph { --graph-blocker: #e8f4ff; --graph-dependent: #3ab0d0; }
 .graph-description, .graph-hint { color: var(--pico-muted-color); font-size: .85rem; }
 .graph-toolbar { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; margin-bottom: .9rem; }
 #graph-search { background-image: none; flex: 0 1 320px; height: 34px; margin: 0; font-size: .8rem; padding: .35rem .7rem; border-radius: 6px; }
@@ -2183,17 +2186,31 @@ a.view-toggle-btn:focus-visible {
 .graph-lane { fill: var(--pico-background-color); stroke: var(--pico-muted-border-color); }
 .graph-lane-title { fill: var(--graph-text); font: 600 13px system-ui, sans-serif; }
 .graph-edge { fill: none; stroke: var(--pico-muted-color); stroke-width: 1.7; }
-.graph-edge-blocker { stroke: var(--graph-blocker); stroke-width: 3; }
-.graph-edge-dependent { stroke: var(--graph-dependent); stroke-width: 3; stroke-dasharray: 8 4; }
+/* Edges of the active ticket are redrawn by highlight() as copies in a layer above all other edges; the originals step
+   aside. Non-scaling strokes (and dashes) keep the copies the same on-screen weight at every zoom level. */
+.graph-edge-lifted { display: none; }
+.graph-edge-blocker, .graph-edge-dependent { fill: none; stroke-width: 4; vector-effect: non-scaling-stroke; }
+.graph-edge-blocker { stroke: var(--graph-blocker); }
+.graph-edge-dependent { stroke: var(--graph-dependent); stroke-dasharray: 10 6; }
+/* Focus mode (svg.graph-focus, set while the active ticket has links): everything outside the active ticket and its
+   direct blockers/dependents recedes. Dimmed cards stay hoverable, clickable and readable; a hovered or keyboard-focused
+   card pops back to full strength so it is easy to target. Lane backgrounds are not dimmed. */
+.graph-node, .graph-edge { transition: opacity .15s; }
+.graph-focus .graph-node:not(.graph-selected, .graph-blocker, .graph-dependent, :hover, :focus) { opacity: .35; }
+.graph-focus .graph-edge { opacity: .15; }
+@media (prefers-reduced-motion: reduce) { .graph-node, .graph-edge { transition: none; } }
 /* Every ticket (issue card or epic lane banner) is a filled surface: fill = status, ink = text/icon, stroke = status border.
    Non-scaling strokes keep borders crisp when the graph is zoomed out. */
 .graph-node { cursor: pointer; outline: none; text-decoration: none; color: var(--status-ink, var(--graph-text)); }
 .graph-card { fill: var(--status-fill, var(--pico-card-background-color)); stroke: var(--status-color, var(--pico-muted-color)); stroke-width: 2; vector-effect: non-scaling-stroke; }
 /* Highlight cues live on a ring outside the fill so they never vanish against a coloured card. */
 .graph-ring { fill: none; stroke: transparent; stroke-width: 3; vector-effect: non-scaling-stroke; pointer-events: none; }
-.graph-node.graph-blocker > .graph-ring { stroke: var(--graph-blocker); stroke-width: 3; }
-.graph-node.graph-dependent > .graph-ring { stroke: var(--graph-dependent); stroke-width: 3; stroke-dasharray: 8 4; }
-.graph-node:focus > .graph-ring, .graph-node:hover > .graph-ring, .graph-node.graph-selected > .graph-ring, .graph-node.graph-match > .graph-ring { stroke: var(--pico-primary); stroke-width: 3; }
+/* Widths are non-scaling screen pixels so rings still read zoomed out (the card covers the inner half of each ring).
+   Active ticket (selected or previewed) is the heaviest and always solid; blockers are solid, dependents dashed. */
+.graph-node.graph-blocker > .graph-ring { stroke: var(--graph-blocker); stroke-width: 5; }
+.graph-node.graph-dependent > .graph-ring { stroke: var(--graph-dependent); stroke-width: 5; stroke-dasharray: 10 6; }
+.graph-node:focus > .graph-ring, .graph-node:hover > .graph-ring, .graph-node.graph-match > .graph-ring { stroke: var(--pico-primary); stroke-width: 4; stroke-dasharray: none; }
+.graph-node.graph-selected > .graph-ring { stroke: var(--pico-primary); stroke-width: 6; stroke-dasharray: none; }
 .graph-title { fill: var(--status-ink, var(--graph-text)); font: 500 13px system-ui, sans-serif; }
 .graph-meta { fill: var(--status-ink, var(--graph-text)); font: 10px ui-monospace, monospace; }
 .graph-lane-header .graph-lane-title { fill: var(--status-ink, var(--graph-text)); }
