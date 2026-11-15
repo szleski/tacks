@@ -29,6 +29,11 @@
     function state(n) {
       return n.status;
     }
+    // Legend counts reflect the loaded graph only; call with no nodes to reset them to the "–" placeholder.
+    const counts = root.querySelectorAll('[data-status-count]');
+    function showCounts(nodes) {
+      counts.forEach(c => { c.textContent = nodes ? nodes.filter(n => state(n) === c.dataset.statusCount).length : '–'; });
+    }
     function highlight() {
       const query = search.value.toLowerCase().trim();
       let matches = 0;
@@ -183,12 +188,12 @@
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         const initial = !graph;
-        graph = window.layoutTacksGraph(data.tasks, data.dependencies); draw();
+        graph = window.layoutTacksGraph(data.tasks, data.dependencies); showCounts(graph.nodes); draw();
         if (selected && !graph.nodes.some(n => n.id === selected)) selected = undefined;
         if (initial) fit();
         dismiss();
         if (!graph.nodes.length) summary.textContent = 'No issues yet. Create an issue to start your graph.';
-      } catch (e) { summary.textContent = `Could not load graph: ${e.message}. Use Refresh to retry.`; }
+      } catch (e) { showCounts(); summary.textContent = `Could not load graph: ${e.message}. Use Refresh to retry.`; }
       finally { button.disabled = false; }
     }
     root.querySelector('#graph-fit').onclick = fit;

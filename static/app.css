@@ -2199,9 +2199,11 @@ a.view-toggle-btn:focus-visible {
 .graph-lane-header .graph-lane-title { fill: var(--status-ink, var(--graph-text)); }
 /* Legend: a key that reuses the card tokens, so a chip looks exactly like the ticket it describes. */
 .graph-legend { display: flex; gap: .5rem; flex-wrap: wrap; font-size: .72rem; }
-.graph-legend > span { display: inline-flex; align-items: center; gap: .3rem; padding: .1rem .5rem; border: 1.5px solid var(--status-color); border-radius: 6px; background: var(--status-fill); color: var(--status-ink); }
+.graph-legend > span { display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap; padding: .1rem .5rem; border: 1.5px solid var(--status-color); border-radius: 6px; background: var(--status-fill); color: var(--status-ink); }
 .graph-legend .status-icon { color: var(--status-ink); }
 .graph-legend svg { width: 14px; height: 14px; }
+/* The count inherits the chip's ink; a faint divider (same colour, reduced opacity) separates it from the label. */
+.graph-legend-count { padding-left: .4rem; border-left: 1px solid color-mix(in srgb, currentColor 40%, transparent); font-weight: 600; font-variant-numeric: tabular-nums; }
 #graph-inspector .graph-preview-waiting { color: var(--status-blocked); }
 #graph-inspector { position: absolute; z-index: 5; width: min(300px, calc(100% - 24px)); max-height: calc(100% - 24px); overflow: auto; padding: 14px; border: 1px solid var(--pico-muted-border-color); border-radius: 8px; background: var(--surface-raised); color: var(--pico-color); box-shadow: 0 8px 28px #0004; font-size: .8rem; }
 #graph-inspector[hidden] { display: none; }

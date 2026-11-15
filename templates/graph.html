@@ -18,10 +18,10 @@
     <div class="graph-caption">
         <p id="graph-summary" role="status" aria-live="polite">Loading issues…</p>
         <div class="graph-legend" aria-label="Issue status legend">
-            <span class="status-open">{% call status_ui::icon("open") %}Open</span>
-            <span class="status-in_progress">{% call status_ui::icon("in_progress") %}In Progress</span>
-            <span class="status-blocked">{% call status_ui::icon("blocked") %}Blocked</span>
-            <span class="status-done">{% call status_ui::icon("done") %}Done</span>
+            <span class="status-open">{% call status_ui::icon("open") %}Open <b class="graph-legend-count" data-status-count="open">–</b></span>
+            <span class="status-in_progress">{% call status_ui::icon("in_progress") %}In Progress <b class="graph-legend-count" data-status-count="in_progress">–</b></span>
+            <span class="status-blocked">{% call status_ui::icon("blocked") %}Blocked <b class="graph-legend-count" data-status-count="blocked">–</b></span>
+            <span class="status-done">{% call status_ui::icon("done") %}Done <b class="graph-legend-count" data-status-count="done">–</b></span>
         </div>
     </div>
     <div class="graph-stage">
