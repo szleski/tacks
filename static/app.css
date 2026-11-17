@@ -2178,11 +2178,21 @@ a.view-toggle-btn:focus-visible {
 .graph-tools button:hover { color: var(--pico-color); background: var(--surface-hover); }
 .graph-tools button:focus-visible { outline: 2px solid var(--pico-primary); outline-offset: 1px; }
 .graph-tool-divider { height: 16px; border-left: 1px solid var(--pico-muted-border-color); margin: 0 3px; }
+/* "Hide completed epics" sits beside the search box: its auto right margin pushes the zoom tools to the far edge, and
+   nowrap keeps the label whole so a narrow toolbar wraps the toggle onto its own line instead of squeezing it. */
+.graph-toggle { display: inline-flex; align-items: center; gap: .45rem; width: auto; margin: 0 auto 0 0; font-size: .8rem; white-space: nowrap; cursor: pointer; }
+.graph-toggle input { flex: 0 0 auto; margin: 0; }
+/* Pico's pale unchecked border is too faint for a control; the checked state keeps its fill and its check mark. */
+.graph-toggle input:not(:checked) { border-color: var(--pico-muted-color); }
+.graph-toggle input:focus-visible { outline: 2px solid var(--pico-primary); outline-offset: 2px; }
 .graph-caption { display: flex; justify-content: space-between; gap: .6rem 1rem; align-items: center; flex-wrap: wrap; margin-bottom: .6rem; }
 #graph-summary { margin: 0; font-size: .75rem; color: var(--pico-muted-color); }
 .graph-stage { position: relative; border: 1px solid var(--pico-muted-border-color); border-radius: 8px; overflow: hidden; }
 #graph-svg { display: block; width: 100%; height: 640px; touch-action: pan-y pinch-zoom; cursor: grab; background: var(--pico-card-background-color); }
 #graph-svg:active { cursor: grabbing; }
+/* Centred message over an empty canvas (no issues, or every epic hidden). It never intercepts the pointer. */
+#graph-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0; padding: 1.5rem; text-align: center; pointer-events: none; color: var(--graph-text); font-size: .95rem; }
+#graph-empty[hidden] { display: none; }
 .graph-lane { fill: var(--pico-background-color); stroke: var(--pico-muted-border-color); }
 .graph-lane-title { fill: var(--graph-text); font: 600 13px system-ui, sans-serif; }
 .graph-edge { fill: none; stroke: var(--pico-muted-color); stroke-width: 1.7; }

@@ -60,3 +60,218 @@ test('empty epic and actual dependencies on epics stay represented as headings',
   for (const e of edges) assert.ok(byId.get(e.parent_id).x < byId.get(e.child_id).x);
   for (const n of graph.nodes) assert.ok(Number.isFinite(n.x) && Number.isFinite(n.y));
 });
+
+// "Hide completed epics": a pure display filter that runs before layout. An epic is a task tagged `epic` or referenced as
+// another task's parent; its lane is the epic plus every task whose nearest epic ancestor it is. A lane is hidden only when
+// every task in it, the heading included, is done. Independent tasks (the '' lane) are never hidden.
+const {hideCompletedEpics} = layout;
+const finished = (id, parent_id = null, tags = []) => ({...node(id, parent_id, tags), status: 'done'});
+const ids = tasks => tasks.map(t => t.id);
+const deepFreeze = tasks => { tasks.forEach(t => { Object.freeze(t.tags); Object.freeze(t); }); return Object.freeze(tasks); };
+
+test('hideCompletedEpics hangs off the layout export and is published globally like layoutTacksGraph', () => {
+  assert.equal(typeof layout, 'function');
+  assert.equal(typeof hideCompletedEpics, 'function');
+  assert.equal(globalThis.hideCompletedEpics, hideCompletedEpics);
+  assert.equal(globalThis.layoutTacksGraph, layout);
+});
+
+test('no tasks yields an empty result', () => {
+  assert.deepEqual(hideCompletedEpics([]), {tasks: [], hiddenEpicIds: [], hiddenIds: []});
+});
+
+test('a lane whose epic heading and tickets are all done is hidden and reported', () => {
+  const tasks = [finished('epic-a', null, ['backend', 'epic']), finished('epic-a.1', 'epic-a'), finished('epic-a.2', 'epic-a'), node('keep')];
+  const result = hideCompletedEpics(tasks);
+  assert.deepEqual(Object.keys(result).sort(), ['hiddenEpicIds', 'hiddenIds', 'tasks']);
+  assert.deepEqual(ids(result.tasks), ['keep']);
+  assert.deepEqual(result.hiddenEpicIds, ['epic-a']);
+  assert.deepEqual(result.hiddenIds, ['epic-a', 'epic-a.1', 'epic-a.2']);
+});
+
+for (const status of ['open', 'in_progress', 'blocked']) {
+  test(`a done epic keeps its lane while one of its tickets is ${status}`, () => {
+    const tasks = [finished('epic', null, ['epic']), finished('epic.1', 'epic'), {...node('epic.2', 'epic'), status}];
+    const result = hideCompletedEpics(tasks);
+    assert.deepEqual(ids(result.tasks), ['epic', 'epic.1', 'epic.2']);
+    assert.deepEqual(result.hiddenEpicIds, []);
+    assert.deepEqual(result.hiddenIds, []);
+  });
+}
+
+test('an open epic heading keeps its lane even when every ticket under it is done', () => {
+  const tasks = [node('epic', null, ['epic']), finished('epic.1', 'epic'), finished('epic.2', 'epic')];
+  const result = hideCompletedEpics(tasks);
+  assert.deepEqual(ids(result.tasks), ['epic', 'epic.1', 'epic.2']);
+  assert.deepEqual(result.hiddenEpicIds, []);
+  assert.deepEqual(result.hiddenIds, []);
+});
+
+test('an open parent without the epic tag is still an epic heading and keeps its done tickets', () => {
+  const tasks = [node('parent'), finished('parent.1', 'parent'), finished('parent.2', 'parent')];
+  const result = hideCompletedEpics(tasks);
+  assert.deepEqual(ids(result.tasks), ['parent', 'parent.1', 'parent.2']);
+  assert.deepEqual(result.hiddenEpicIds, []);
+  assert.deepEqual(result.hiddenIds, []);
+});
+
+test('a done parent without the epic tag is hidden with its done tickets because a parent counts as an epic', () => {
+  const tasks = [finished('parent'), finished('parent.1', 'parent'), finished('parent.2', 'parent')];
+  const result = hideCompletedEpics(tasks);
+  assert.deepEqual(result.tasks, []);
+  assert.deepEqual(result.hiddenEpicIds, ['parent']);
+  assert.deepEqual(result.hiddenIds, ['parent', 'parent.1', 'parent.2']);
+});
+
+test('done independent tickets are never hidden, including ones whose parent is missing', () => {
+  const tasks = [finished('solo-a'), finished('solo-b', null, ['bug']), finished('orphan', 'ghost')];
+  const result = hideCompletedEpics(tasks);
+  assert.deepEqual(result.tasks, tasks);
+  assert.deepEqual(result.hiddenEpicIds, []);
+  assert.deepEqual(result.hiddenIds, []);
+});
+
+test('done independent tickets stay next to a hidden epic lane', () => {
+  const tasks = [finished('epic', null, ['epic']), finished('epic.1', 'epic'), finished('solo-a'), finished('orphan', 'ghost')];
+  const result = hideCompletedEpics(tasks);
+  assert.deepEqual(ids(result.tasks), ['solo-a', 'orphan']);
+  assert.deepEqual(result.hiddenEpicIds, ['epic']);
+  assert.deepEqual(result.hiddenIds, ['epic', 'epic.1']);
+});
+
+test('an empty done epic is hidden while an empty open epic stays', () => {
+  const tasks = [finished('empty-done', null, ['epic']), node('empty-open', null, ['epic'])];
+  const result = hideCompletedEpics(tasks);
+  assert.deepEqual(ids(result.tasks), ['empty-open']);
+  assert.deepEqual(result.hiddenEpicIds, ['empty-done']);
+  assert.deepEqual(result.hiddenIds, ['empty-done']);
+});
+
+test('a hidden nested epic leaves its live parent epic and the parent tickets in place', () => {
+  const tasks = [node('parent', null, ['epic']), node('parent.1', 'parent'), finished('nested', 'parent', ['epic']), finished('nested.1', 'nested')];
+  const result = hideCompletedEpics(tasks);
+  assert.deepEqual(ids(result.tasks), ['parent', 'parent.1']);
+  assert.deepEqual(result.hiddenEpicIds, ['nested']);
+  assert.deepEqual(result.hiddenIds, ['nested', 'nested.1']);
+  const graph = layout(result.tasks, []);
+  assert.ok(graph.nodes.find(n => n.id === 'parent').isLaneHeader);
+  assert.equal(graph.nodes.find(n => n.id === 'parent.1').lane, 'parent');
+  assert.deepEqual(graph.groups.map(g => g.id), ['parent']);
+});
+
+test('a parent that was only an epic heading because of a hidden nested epic stays a lane header', () => {
+  const tasks = [node('parent'), finished('nested', 'parent', ['epic']), finished('nested.1', 'nested')];
+  const result = hideCompletedEpics(tasks);
+  assert.deepEqual(ids(result.tasks), ['parent']);
+  assert.deepEqual(result.hiddenEpicIds, ['nested']);
+  assert.deepEqual(result.tasks[0].tags, ['epic']);
+  assert.deepEqual(tasks[0].tags, [], 'the input task keeps its original tags');
+  const graph = layout(result.tasks, []);
+  assert.ok(graph.nodes[0].isLaneHeader);
+  assert.deepEqual(graph.groups.map(g => g.id), ['parent']);
+});
+
+test('a parent epic that still has a visible child is returned untouched', () => {
+  const tasks = [node('parent'), node('parent.1', 'parent'), finished('nested', 'parent', ['epic']), finished('nested.1', 'nested')];
+  const result = hideCompletedEpics(tasks);
+  assert.deepEqual(result.tasks, [tasks[0], tasks[1]]);
+  assert.deepEqual(result.tasks[0].tags, []);
+});
+
+test('a done parent and its done nested epic are both hidden', () => {
+  const tasks = [finished('parent'), finished('nested', 'parent', ['epic']), finished('nested.1', 'nested')];
+  const result = hideCompletedEpics(tasks);
+  assert.deepEqual(result.tasks, []);
+  assert.deepEqual(result.hiddenEpicIds, ['nested', 'parent']);
+  assert.deepEqual(result.hiddenIds, ['nested', 'nested.1', 'parent']);
+});
+
+test('nested epics are judged independently, so an open nested epic stays when its done parent is hidden', () => {
+  const tasks = [finished('parent', null, ['epic']), node('nested', 'parent', ['epic']), finished('nested.1', 'nested')];
+  const result = hideCompletedEpics(tasks);
+  assert.deepEqual(ids(result.tasks), ['nested', 'nested.1']);
+  assert.deepEqual(result.hiddenEpicIds, ['parent']);
+  assert.deepEqual(result.hiddenIds, ['parent']);
+  const graph = layout(result.tasks, []);
+  assert.ok(graph.nodes.find(n => n.id === 'nested').isLaneHeader);
+  assert.deepEqual(graph.groups.map(g => g.id), ['nested']);
+});
+
+test('the input array and its task objects are not mutated', () => {
+  const tasks = deepFreeze([
+    node('parent'), finished('nested', 'parent', ['epic']), finished('nested.1', 'nested'),
+    finished('solo'), finished('other', null, ['epic']), finished('other.1', 'other'),
+  ]);
+  const before = JSON.parse(JSON.stringify(tasks));
+  const result = hideCompletedEpics(tasks);
+  assert.deepEqual(tasks, before);
+  assert.equal(tasks.length, 6);
+  assert.notEqual(result.tasks, tasks);
+  assert.deepEqual(ids(result.tasks), ['parent', 'solo']);
+  assert.deepEqual(result.tasks[0].tags, ['epic'], 'the heading fix-up is applied to a copy');
+  assert.notEqual(result.tasks[0], tasks[0]);
+  assert.deepEqual(tasks[0].tags, []);
+});
+
+test('filtering already filtered tasks hides nothing more', () => {
+  const tasks = [
+    node('parent'), finished('nested', 'parent', ['epic']), finished('nested.1', 'nested'),
+    finished('solo'), finished('other', null, ['epic']), finished('other.1', 'other'),
+  ];
+  const once = hideCompletedEpics(tasks);
+  assert.deepEqual(ids(once.tasks), ['parent', 'solo']);
+  assert.deepEqual(hideCompletedEpics(once.tasks), {tasks: once.tasks, hiddenEpicIds: [], hiddenIds: []});
+});
+
+test('dependencies on hidden tickets are dropped and the visible tickets close up', () => {
+  const tasks = [finished('alpha', null, ['epic']), finished('alpha.1', 'alpha'), node('zeta', null, ['epic']), node('zeta.1', 'zeta')];
+  const deps = [edge('alpha.1', 'zeta.1')];
+  const unfiltered = layout(tasks, deps);
+  const result = hideCompletedEpics(tasks);
+  assert.deepEqual(ids(result.tasks), ['zeta', 'zeta.1']);
+  const filtered = layout(result.tasks, deps);
+  const at = (graph, id) => graph.nodes.find(n => n.id === id);
+  assert.deepEqual(unfiltered.edges, deps);
+  assert.deepEqual(filtered.edges, []);
+  assert.equal(at(unfiltered, 'zeta.1').rank, 1);
+  assert.equal(at(filtered, 'zeta.1').rank, 0);
+  assert.ok(at(filtered, 'zeta.1').x < at(unfiltered, 'zeta.1').x);
+  assert.ok(at(filtered, 'zeta').y < at(unfiltered, 'zeta').y, 'rows close up where the hidden lane was');
+  assert.ok(filtered.height < unfiltered.height);
+  assert.deepEqual(filtered, layout(result.tasks, []), 'no trace of the dropped dependency remains');
+});
+
+test('an all-done graph hides every lane and the empty remainder still lays out', () => {
+  const tasks = [finished('alpha', null, ['epic']), finished('alpha.1', 'alpha'), finished('beta', null, ['epic']), finished('beta.1', 'beta')];
+  const deps = [edge('alpha.1', 'beta.1')];
+  const result = hideCompletedEpics(tasks);
+  assert.deepEqual(result.tasks, []);
+  assert.deepEqual(result.hiddenEpicIds, ['alpha', 'beta']);
+  assert.deepEqual(result.hiddenIds, ['alpha', 'alpha.1', 'beta', 'beta.1']);
+  const graph = layout(result.tasks, deps);
+  assert.deepEqual(graph.nodes, []);
+  assert.deepEqual(graph.edges, []);
+  assert.deepEqual(graph.groups, []);
+  assert.ok(Number.isFinite(graph.width) && graph.width > 0);
+  assert.ok(Number.isFinite(graph.height) && graph.height > 0);
+  assert.deepEqual(graph, layout([], []));
+});
+
+test('hidden ids are sorted and remaining tasks keep input order, whatever the input order', () => {
+  const tasks = [
+    finished('beta', null, ['epic']), finished('beta.1', 'beta'), node('open-1'),
+    finished('alpha.2', 'alpha'), finished('alpha', null, ['epic']), finished('alpha.1', 'alpha'),
+    node('gamma', null, ['epic']),
+  ];
+  const deps = [edge('alpha.1', 'open-1'), edge('open-1', 'gamma')];
+  const forward = hideCompletedEpics(tasks);
+  const backward = hideCompletedEpics([...tasks].reverse());
+  for (const result of [forward, backward]) {
+    assert.deepEqual(result.hiddenEpicIds, ['alpha', 'beta']);
+    assert.deepEqual(result.hiddenIds, ['alpha', 'alpha.1', 'alpha.2', 'beta', 'beta.1']);
+  }
+  assert.deepEqual(ids(forward.tasks), ['open-1', 'gamma']);
+  assert.deepEqual(ids(backward.tasks), ['gamma', 'open-1']);
+  assert.deepEqual(layout(backward.tasks, deps), layout(forward.tasks, deps));
+  assert.deepEqual(hideCompletedEpics(tasks), forward, 'the result is deterministic');
+});

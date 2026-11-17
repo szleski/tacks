@@ -360,3 +360,147 @@ fn graph_highlight_colours_stay_legible_and_differ_in_lightness() {
         );
     }
 }
+
+/// Insert a task with an explicit status, optional parent and tags. Parents must be inserted first.
+fn insert_task(db: &Database, id: &str, parent: Option<&str>, status: Status, tags: &[&str]) {
+    let now = chrono::Utc::now();
+    db.insert_task(&Task {
+        id: id.into(),
+        title: format!("Issue {id}"),
+        description: None,
+        status,
+        priority: 2,
+        assignee: None,
+        parent_id: parent.map(str::to_string),
+        tags: tags.iter().map(|t| t.to_string()).collect(),
+        created_at: now,
+        updated_at: now,
+        close_reason: None,
+        notes: None,
+    })
+    .unwrap();
+}
+
+/// Serve the web app for `db` on an ephemeral local port; returns the base url and the server task.
+async fn serve(db: Database) -> (String, tokio::task::JoinHandle<()>) {
+    let app = tacks::web::create_router(tacks::web::AppState {
+        db: Arc::new(Mutex::new(db)),
+        last_data_version: Arc::new(AtomicI64::new(0)),
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(async { axum::serve(listener, app).await.unwrap() });
+    (url, server)
+}
+
+/// GET `url` and return the body, failing on a non-success status.
+async fn get_text(client: &reqwest::Client, url: &str) -> String {
+    client
+        .get(url)
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap()
+        .text()
+        .await
+        .unwrap()
+}
+
+/// The opening tag (from `<` to `>`) of the element carrying `id="<id>"`.
+fn html_tag<'a>(html: &'a str, id: &str) -> &'a str {
+    let at = html
+        .find(&format!("id=\"{id}\""))
+        .unwrap_or_else(|| panic!("no element with id {id}"));
+    let start = html[..at].rfind('<').unwrap();
+    let end = at + html[at..].find('>').unwrap();
+    &html[start..=end]
+}
+
+// "Hide completed epics" is a display choice made in the browser (static/graph.js filters with
+// hideCompletedEpics from static/graph-layout.js). The server must keep returning every issue and
+// dependency from /api/graph and only ship the controls and scripts that apply the choice.
+#[tokio::test]
+async fn graph_hide_completed_epics_is_a_client_side_option() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Database::open(&dir.path().join("graph-hide.db")).unwrap();
+    db.migrate().unwrap();
+    insert_task(&db, "done-epic", None, Status::Done, &["epic"]);
+    insert_task(&db, "done-1", Some("done-epic"), Status::Done, &[]);
+    insert_task(&db, "done-2", Some("done-epic"), Status::Done, &[]);
+    insert_task(&db, "open-epic", None, Status::Open, &["epic"]);
+    insert_task(&db, "open-1", Some("open-epic"), Status::Open, &[]);
+    db.add_dependency("open-1", "done-1").unwrap();
+    let (url, server) = serve(db).await;
+    let client = reqwest::Client::new();
+
+    // The page ships the toggle (unchecked by default) and a hidden empty-state message.
+    let html = get_text(&client, &format!("{url}/graph")).await;
+    assert!(html.contains("id=\"graph-hide-done\""));
+    assert!(html.contains("Hide completed epics"));
+    assert!(html.contains("id=\"graph-empty\""));
+    let toggle = html_tag(&html, "graph-hide-done");
+    assert!(
+        toggle.contains("type=\"checkbox\""),
+        "toggle is a checkbox: {toggle}"
+    );
+    assert!(
+        !toggle.contains("checked"),
+        "hiding must be off until the browser restores a saved choice: {toggle}"
+    );
+    let empty = html_tag(&html, "graph-empty");
+    assert!(
+        empty
+            .trim_end_matches('>')
+            .split_whitespace()
+            .any(|attr| attr == "hidden"),
+        "empty-state message starts hidden: {empty}"
+    );
+
+    // The API is unaffected: the completed epic and its children are still returned in full.
+    let data: serde_json::Value = client
+        .get(format!("{url}/api/graph"))
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let tasks = data["tasks"].as_array().unwrap();
+    let mut task_ids: Vec<&str> = tasks.iter().map(|t| t["id"].as_str().unwrap()).collect();
+    task_ids.sort_unstable();
+    assert_eq!(
+        task_ids,
+        ["done-1", "done-2", "done-epic", "open-1", "open-epic"]
+    );
+    for (id, status) in [
+        ("done-epic", "done"),
+        ("done-1", "done"),
+        ("done-2", "done"),
+        ("open-epic", "open"),
+        ("open-1", "open"),
+    ] {
+        let task = tasks.iter().find(|t| t["id"] == id).unwrap();
+        assert_eq!(task["status"], status, "status of {id}");
+    }
+    assert_eq!(
+        data["dependencies"],
+        serde_json::json!([{"parent_id": "done-1", "child_id": "open-1"}])
+    );
+
+    // The scripts that implement and persist the option are served.
+    let layout_js = get_text(&client, &format!("{url}/static/graph-layout.js")).await;
+    assert!(layout_js.contains("hideCompletedEpics"));
+    let graph_js = get_text(&client, &format!("{url}/static/graph.js")).await;
+    assert!(
+        graph_js.contains("graph-hide-done"),
+        "graph.js must bind the checkbox id from the template"
+    );
+    assert!(
+        graph_js.contains("graph-hide-completed-epics"),
+        "the saved-choice storage key is part of users' saved state"
+    );
+    server.abort();
+}

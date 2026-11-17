@@ -7,7 +7,15 @@
     root.dataset.initialized = 'true';
     const svg = root.querySelector('#graph-svg'), summary = root.querySelector('#graph-summary');
     const inspector = root.querySelector('#graph-inspector'), search = root.querySelector('#graph-search');
-    let graph, selected, hovered, box, drag, previewTimer, hideTimer, topEdges, moved = false;
+    const hideDone = root.querySelector('#graph-hide-done'), empty = root.querySelector('#graph-empty');
+    // `data` is the raw /api/graph payload; `graph` is its laid-out visible subset. Keeping the payload lets the hide
+    // option re-layout and redraw without refetching. Everything below (search, counts, inspector) reads `graph` only.
+    let data, graph, hiddenEpics = 0, selected, hovered, box, drag, previewTimer, hideTimer, topEdges, moved = false;
+    // The hide choice survives reloads; storage can be blocked or full, in which case the choice just isn't remembered.
+    const HIDE_KEY = 'graph-hide-completed-epics';
+    function savedHide() { try { return localStorage.getItem(HIDE_KEY) === 'true'; } catch (e) { return false; } }
+    function saveHide(on) { try { localStorage.setItem(HIDE_KEY, String(on)); } catch (e) { /* not remembered */ } }
+    hideDone.checked = savedHide();
     function el(tag, attrs, text) {
       const e = document.createElementNS(NS, tag);
       Object.entries(attrs || {}).forEach(([key, value]) => e.setAttribute(key, value));
@@ -72,7 +80,8 @@
         lifted.push(copy);
       });
       topEdges.replaceChildren(...lifted);
-      summary.textContent = `${graph.nodes.length} issues · ${graph.groups.filter(g => g.id).length} epic groups · ${graph.edges.length} dependencies · all statuses included${query ? ` · ${matches} matches` : ''}`;
+      const scope = hiddenEpics ? `${hiddenEpics} completed epic${hiddenEpics === 1 ? '' : 's'} hidden` : 'all statuses included';
+      summary.textContent = graph.nodes.length ? `${graph.nodes.length} issues · ${graph.groups.filter(g => g.id).length} epic groups · ${graph.edges.length} dependencies · ${scope}${query ? ` · ${matches} matches` : ''}` : empty.textContent;
     }
     function dismiss() {
       clearTimeout(previewTimer); clearTimeout(hideTimer);
@@ -202,18 +211,26 @@
       });
       highlight();
     }
+    // Lays out and draws the cached payload. Completed epics are filtered out first so ranks and rows close up around them.
+    function render() {
+      const shown = hideDone.checked ? window.hideCompletedEpics(data.tasks) : {tasks: data.tasks, hiddenEpicIds: []};
+      hiddenEpics = shown.hiddenEpicIds.length;
+      graph = window.layoutTacksGraph(shown.tasks, data.dependencies); showCounts(graph.nodes);
+      if (selected && !graph.nodes.some(n => n.id === selected)) selected = undefined;
+      // Also shown in the summary (see highlight) so screen readers hear it through the status region.
+      empty.textContent = hiddenEpics ? `No issues to show: ${hiddenEpics} completed epic${hiddenEpics === 1 ? ' is' : 's are'} hidden. Turn off “Hide completed epics” to see ${hiddenEpics === 1 ? 'it' : 'them'}.` : 'No issues yet. Create an issue to start your graph.';
+      empty.hidden = graph.nodes.length > 0;
+      draw(); dismiss();
+    }
     async function load() {
       const button = root.querySelector('#graph-refresh'); button.disabled = true;
       try {
         const response = await fetch('/api/graph');
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
+        data = await response.json();
         const initial = !graph;
-        graph = window.layoutTacksGraph(data.tasks, data.dependencies); showCounts(graph.nodes); draw();
-        if (selected && !graph.nodes.some(n => n.id === selected)) selected = undefined;
+        render();
         if (initial) fit();
-        dismiss();
-        if (!graph.nodes.length) summary.textContent = 'No issues yet. Create an issue to start your graph.';
       } catch (e) { showCounts(); summary.textContent = `Could not load graph: ${e.message}. Use Refresh to retry.`; }
       finally { button.disabled = false; }
     }
@@ -221,6 +238,8 @@
     root.querySelector('#graph-in').onclick = () => { if (box) zoom(.8); };
     root.querySelector('#graph-out').onclick = () => { if (box) zoom(1.25); };
     root.querySelector('#graph-refresh').onclick = load;
+    // Before the first load finishes there is nothing cached to redraw; load() will honour the checkbox when it lands.
+    hideDone.onchange = () => { saveHide(hideDone.checked); if (data) { render(); fit(); } };
     search.oninput = () => { if (graph) highlight(); };
     // Chromium/Firefox expose trackpad pinch as a Ctrl-modified wheel event.
     // Ordinary wheel/two-finger scroll retains the browser's page scrolling.

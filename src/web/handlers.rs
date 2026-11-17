@@ -2099,7 +2099,8 @@ pub async fn api_stats(State(state): State<AppState>) -> Result<impl IntoRespons
     Ok(Json(result))
 }
 
-// The graph deliberately has no list/board filters: every issue is represented.
+// The graph deliberately has no list/board filters: /api/graph always returns every issue and dependency.
+// The page's "Hide completed epics" option is purely a client-side display choice (static/graph.js).
 #[derive(Template)]
 #[template(path = "graph.html")]
 struct GraphTemplate;
