@@ -275,3 +275,85 @@ test('hidden ids are sorted and remaining tasks keep input order, whatever the i
   assert.deepEqual(layout(backward.tasks, deps), layout(forward.tasks, deps));
   assert.deepEqual(hideCompletedEpics(tasks), forward, 'the result is deterministic');
 });
+
+// Column placement: `rank` stays the ASAP dependency depth, `column` decides x (x = 40 + column * 300). Each lane caps cards
+// per column at max(4, ceil(sqrt(cards))); linked cards move right only within their ALAP slack, unlinked cards fill gaps.
+const byIdOf = graph => new Map(graph.nodes.map(n => [n.id, n]));
+const columnSizes = cards => cards.reduce((m, n) => m.set(n.column, (m.get(n.column) || 0) + 1), new Map());
+const pad = (prefix, i) => `${prefix}${String(i).padStart(2, '0')}`;
+
+test('30 unlinked independent issues wrap into a 5 x 6 grid instead of one tall column', () => {
+  const tasks = Array.from({length: 30}, (_, i) => node(pad('t', i)));
+  const graph = layout(tasks, []);
+  const sizes = columnSizes(graph.nodes);
+  assert.equal(sizes.size, 5);
+  for (const size of sizes.values()) assert.equal(size, 6);
+  assert.deepEqual([...sizes.keys()].sort(), [0, 1, 2, 3, 4]);
+  assert.equal(new Set(graph.nodes.map(n => `${n.x},${n.y}`)).size, 30);
+  assert.ok(graph.groups[0].height < 30 * 100 / 2, `lane height ${graph.groups[0].height} is much smaller than 30 rows`);
+  for (const n of graph.nodes) {
+    assert.equal(n.rank, 0);
+    assert.equal(n.x, 40 + n.column * 300);
+    assert.ok(n.x >= 0 && n.y >= 0 && n.x + n.width < graph.width && n.y + n.height < graph.height);
+  }
+});
+
+const crossLaneTasks = () => [
+  node('E', null, ['epic']), ...Array.from({length: 12}, (_, i) => node(pad('e', i), 'E')),
+  node('F', null, ['epic']), ...Array.from({length: 4}, (_, i) => node(pad('f', i), 'F')),
+];
+// Six E cards each block the end of a 4-card chain in F, so they have slack to spread over columns.
+const crossLaneDeps = () => [
+  edge('f00', 'f01'), edge('f01', 'f02'), edge('f02', 'f03'),
+  ...Array.from({length: 6}, (_, i) => edge(pad('e', i), 'f03')),
+];
+
+test('a wide lane whose cards block a chain in another lane keeps every edge pointing right and ranks as ASAP depth', () => {
+  const graph = layout(crossLaneTasks(), crossLaneDeps());
+  const byId = byIdOf(graph);
+  for (const e of graph.edges) assert.ok(byId.get(e.parent_id).x < byId.get(e.child_id).x, `${e.parent_id} -> ${e.child_id}`);
+  for (let i = 0; i < 6; i++) assert.equal(byId.get(pad('e', i)).rank, 0);
+  assert.deepEqual(['f00', 'f01', 'f02', 'f03'].map(id => byId.get(id).rank), [0, 1, 2, 3]);
+  assert.ok(graph.nodes.some(n => n.column !== n.rank), 'some card sits right of its rank');
+  const eCards = graph.nodes.filter(n => n.lane === 'E' && !n.isLaneHeader);
+  for (const size of columnSizes(eCards).values()) assert.ok(size <= 4, 'E lane cap of 4 per column holds');
+  assert.equal(new Set(graph.nodes.map(n => `${n.x},${n.y}`)).size, graph.nodes.length);
+});
+
+test('cards with no slack stay in column 0 even beyond the lane cap', () => {
+  // 5 roots in one lane (cap 4) each block a card in another lane; max rank is 1 so nothing can move right.
+  const tasks = [
+    ...Array.from({length: 5}, (_, i) => node(pad('r', i))),
+    node('E', null, ['epic']), ...Array.from({length: 5}, (_, i) => node(pad('c', i), 'E')),
+  ];
+  const deps = Array.from({length: 5}, (_, i) => edge(pad('r', i), pad('c', i)));
+  const graph = layout(tasks, deps);
+  const byId = byIdOf(graph);
+  for (let i = 0; i < 5; i++) {
+    assert.equal(byId.get(pad('r', i)).rank, 0);
+    assert.equal(byId.get(pad('r', i)).column, 0);
+    assert.equal(byId.get(pad('c', i)).rank, 1);
+    assert.equal(byId.get(pad('c', i)).column, 1);
+  }
+  assert.equal(columnSizes(graph.nodes.filter(n => n.lane === '')).get(0), 5, 'overflow past the cap of 4 is allowed');
+  assert.equal(new Set(graph.nodes.map(n => `${n.x},${n.y}`)).size, graph.nodes.length);
+  for (const e of graph.edges) assert.ok(byId.get(e.parent_id).x < byId.get(e.child_id).x);
+});
+
+test('layout does not depend on dependency or task input order', () => {
+  const tasks = crossLaneTasks(), deps = crossLaneDeps();
+  const forward = layout(tasks, deps);
+  const strip = g => ({nodes: g.nodes, groups: g.groups, width: g.width, height: g.height});
+  assert.deepEqual(strip(layout(tasks, [...deps].reverse())), strip(forward));
+  assert.deepEqual(strip(layout([...tasks].reverse(), deps)), strip(forward));
+  assert.deepEqual(strip(layout([...tasks].reverse(), [...deps].reverse())), strip(forward));
+});
+
+test('small lanes are unchanged: column equals rank for every node', () => {
+  const tasks = [node('E1', null, ['epic']), node('E2', null, ['epic']), node('d', 'E2'), node('b', 'E1'), node('c', 'E2'), node('a', 'E1'), node('solo1'), node('solo2')];
+  const graph = layout(tasks, [edge('a', 'b'), edge('a', 'c'), edge('b', 'd'), edge('c', 'd')]);
+  for (const n of graph.nodes) {
+    assert.equal(n.column, n.rank, n.id);
+    assert.equal(n.x, 40 + n.rank * 300, n.id);
+  }
+});
